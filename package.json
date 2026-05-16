@@ -1,0 +1,11 @@
+{
+  "name": "raglens",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "docs:dev": "npm --prefix docs-site run dev",
+    "docs:build": "npm --prefix docs-site run build",
+    "docs:preview": "npm --prefix docs-site run preview",
+    "docs:check": "npm --prefix docs-site run check"
+  }
+}

@@ -1,0 +1,39 @@
+---
+import { getCollection } from 'astro:content';
+import '../styles/global.css';
+
+const docs = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.order);
+---
+
+<html lang="en-AU">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RAGLens Project Docs</title>
+    <meta
+      name="description"
+      content="Product, architecture, evaluation, API, data, roadmap, testing, CI/CD, release, and development documentation for the RAGLens platform."
+    />
+  </head>
+  <body>
+    <main class="landing">
+      <header class="hero">
+        <h1>RAGLens Project Docs</h1>
+        <p>
+          Product, architecture, evaluation, API, data, roadmap, testing, CI/CD, release, and development documentation for the RAGLens platform.
+        </p>
+      </header>
+
+      <section class="cards" aria-label="Documentation pages">
+        {docs.map((doc) => (
+          <a class="card" href={`/docs/${doc.id}`}>
+            <p class="card-section">{doc.data.section}</p>
+            <h2>{doc.data.title}</h2>
+            <p>{doc.data.description}</p>
+            <p class="badge">{doc.data.status}</p>
+          </a>
+        ))}
+      </section>
+    </main>
+  </body>
+</html>
