@@ -16,21 +16,21 @@ Stage 2 - Corpus, ingestion, and metadata baseline.
 - Stage 1 - Local platform foundation: PR #1 merged.
 - Stage 2 seed corpus and eval fixture: PR #2 merged.
 - Stage 2 Markdown ingestion and document chunk endpoints: PR #3 merged.
+- Stage 2 database-backed document ingestion and seed command: PR #4 merged.
 
 ## Current active PR
 
-- PR pending: Stage 2 database-backed document ingestion and seed command
-- Branch: `stage-2-db-seed`
+- PR pending: Stage 2 Postgres repository integration test path
+- Branch: `stage-2-postgres-integration-tests`
 
 ## Stage 2 acceptance criteria advanced by current slice
 
-- Database-backed document repository implementation exists.
-- `rag-api` can use either Postgres or in-memory document storage through configuration.
-- Seed documents can be loaded from `infra/seed/documents` and ingested through the repository contract.
-- Tests cover seed document loading without requiring a live database.
+- CI starts a Postgres + pgvector service for rag-api tests.
+- Postgres-backed document repository is tested against real `rag.documents` and `rag.document_chunks` tables.
+- Integration tests verify insert, list, chunk ordering, and re-ingestion replacement behaviour.
+- Local test execution can skip Postgres integration tests unless `TEST_DATABASE_URL` is set.
 
-## Next remaining Stage 2 work after database ingestion slice
+## Next remaining Stage 2 work after integration test slice
 
-- Add integration test path for Postgres-backed repository when CI database service is available.
 - Add dashboard document list/detail screens.
 - Add seed ingestion documentation to README or developer docs.
