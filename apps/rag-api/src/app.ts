@@ -6,15 +6,21 @@ import {
   createDocumentPool,
   PostgresDocumentRepository
 } from './documents/postgresDocumentRepository.js';
+import { PostgresRetrievalTraceRepository } from './documents/postgresRetrievalTraceRepository.js';
+import { InMemoryRetrievalTraceRepository } from './documents/retrievalTraceRepository.js';
 
 export function buildApp(config: AppConfig) {
   const app = Fastify({
     logger: config.NODE_ENV !== 'test'
   });
-  const documentRepository =
-    config.DOCUMENT_REPOSITORY === 'postgres'
-      ? new PostgresDocumentRepository(createDocumentPool(config.DATABASE_URL))
-      : new InMemoryDocumentRepository();
+  const documentPool =
+    config.DOCUMENT_REPOSITORY === 'postgres' ? createDocumentPool(config.DATABASE_URL) : null;
+  const documentRepository = documentPool
+    ? new PostgresDocumentRepository(documentPool)
+    : new InMemoryDocumentRepository();
+  const retrievalTraceRepository = documentPool
+    ? new PostgresRetrievalTraceRepository(documentPool)
+    : new InMemoryRetrievalTraceRepository();
 
   app.get('/api/v1/health', async () => ({
     status: 'ok',
@@ -23,7 +29,7 @@ export function buildApp(config: AppConfig) {
   }));
 
   app.register(async (instance) => {
-    await registerDocumentRoutes(instance, documentRepository);
+    await registerDocumentRoutes(instance, documentRepository, retrievalTraceRepository);
   });
 
   return app;
