@@ -101,7 +101,8 @@ def create_dataset_router(repository: DatasetRepository) -> APIRouter:
 
     @router.get('', response_model=DatasetListResponse)
     def list_datasets() -> DatasetListResponse:
-        return DatasetListResponse(datasets=[to_dataset_response(dataset) for dataset in repository.list()])
+        datasets = [to_dataset_response(dataset) for dataset in repository.list()]
+        return DatasetListResponse(datasets=datasets)
 
     @router.get('/{dataset_id}', response_model=DatasetResponse)
     def get_dataset(dataset_id: str) -> DatasetRecord:
