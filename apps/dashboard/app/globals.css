@@ -175,8 +175,25 @@ code {
   margin-bottom: 8px;
 }
 
+.trace-summary-card {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.trace-summary-card h2 {
+  margin-top: 0;
+}
+
 @media (max-width: 720px) {
-  .retrieval-form {
+  .retrieval-form,
+  .trace-summary-card {
     grid-template-columns: 1fr;
+  }
+
+  .trace-summary-card {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
