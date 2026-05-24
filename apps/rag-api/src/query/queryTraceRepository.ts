@@ -12,6 +12,18 @@ export type QueryTraceError = {
   retryable: boolean;
 };
 
+export type ProviderCallTelemetry = {
+  provider: string;
+  model: string;
+  status: QueryTraceStatus;
+  latencyMs: number;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  totalTokens: number | null;
+  estimatedCostUsd: number | null;
+  errorCode: AnswerProviderErrorCode | null;
+};
+
 export type QueryTraceChunkRecord = QueryCitation & {
   traceId: string;
 };
@@ -35,6 +47,7 @@ export type QueryTraceRecord = {
   latencyMs: number;
   citationValidation: CitationValidationResult;
   citations: QueryCitation[];
+  providerCall: ProviderCallTelemetry | null;
   error: QueryTraceError | null;
   createdAt: string;
 };
@@ -53,6 +66,7 @@ export type CreateQueryTraceInput = {
   latencyMs: number;
   citationValidation: CitationValidationResult;
   citations: QueryCitation[];
+  providerCall?: ProviderCallTelemetry | null;
   error?: QueryTraceError | null;
 };
 
@@ -79,6 +93,7 @@ export class InMemoryQueryTraceRepository implements QueryTraceRepository {
       latencyMs: input.latencyMs,
       citationValidation: input.citationValidation,
       citations: input.citations,
+      providerCall: input.providerCall ?? null,
       error: input.error ?? null,
       createdAt: new Date().toISOString()
     };

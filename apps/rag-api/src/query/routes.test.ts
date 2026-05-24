@@ -98,7 +98,18 @@ describe('query routes', () => {
         citedChunks: queryBody.usage.citedChunks
       },
       citationValidation: queryBody.citationValidation,
-      citations: queryBody.citations
+      citations: queryBody.citations,
+      providerCall: {
+        provider: 'deterministic',
+        model: 'deterministic-context-preview-v1',
+        status: 'succeeded',
+        latencyMs: expect.any(Number),
+        promptTokens: null,
+        completionTokens: null,
+        totalTokens: null,
+        estimatedCostUsd: null,
+        errorCode: null
+      }
     });
   });
 
