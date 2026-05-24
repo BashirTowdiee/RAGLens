@@ -11,6 +11,20 @@ export type AnswerProviderResult = {
   model: string;
 };
 
+export type AnswerProviderErrorCode = 'provider_unavailable' | 'provider_timeout' | 'provider_invalid_response';
+
+export class AnswerProviderError extends Error {
+  constructor(
+    public readonly code: AnswerProviderErrorCode,
+    message: string,
+    public readonly provider = 'unknown',
+    public readonly retryable = true
+  ) {
+    super(message);
+    this.name = 'AnswerProviderError';
+  }
+}
+
 export interface AnswerProvider {
   generate(input: AnswerProviderInput): Promise<AnswerProviderResult>;
 }
