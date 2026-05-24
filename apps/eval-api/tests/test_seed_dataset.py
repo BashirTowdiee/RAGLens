@@ -11,12 +11,25 @@ EXPECTED_SOURCE_IDS = {
     'expense-policy': DOCUMENTS_ROOT / 'policies' / 'expense-policy.md',
     'onboarding-policy': DOCUMENTS_ROOT / 'policies' / 'onboarding-policy.md',
     'mobile-release-process': DOCUMENTS_ROOT / 'engineering' / 'mobile-release-process.md',
-    'incident-response-runbook': DOCUMENTS_ROOT / 'engineering' / 'incident-response-runbook.md',
+    'incident-response-runbook': DOCUMENTS_ROOT
+    / 'engineering'
+    / 'incident-response-runbook.md',
     'api-integration-guide': DOCUMENTS_ROOT / 'engineering' / 'api-integration-guide.md',
-    'architecture-decision-records': DOCUMENTS_ROOT / 'engineering' / 'architecture-decision-records.md',
+    'architecture-decision-records': DOCUMENTS_ROOT
+    / 'engineering'
+    / 'architecture-decision-records.md',
     'refund-policy': DOCUMENTS_ROOT / 'support' / 'refund-policy.md',
     'escalation-process': DOCUMENTS_ROOT / 'support' / 'escalation-process.md',
     'known-issues': DOCUMENTS_ROOT / 'support' / 'known-issues.md',
+}
+
+REQUIRED_CASE_TYPES = {
+    'factual',
+    'comparison',
+    'temporal',
+    'multi_hop',
+    'no_answer',
+    'citation_sensitive',
 }
 
 
@@ -29,7 +42,7 @@ def test_seed_dataset_contains_required_case_types() -> None:
 
     case_types = {test_case['type'] for test_case in dataset['testCases']}
 
-    assert {'factual', 'comparison', 'temporal', 'multi_hop', 'no_answer', 'citation_sensitive'} <= case_types
+    assert REQUIRED_CASE_TYPES <= case_types
 
 
 def test_seed_dataset_expected_sources_exist() -> None:
