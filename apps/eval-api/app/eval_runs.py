@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -12,6 +12,16 @@ class CreateEvalRunRequest(BaseModel):
     dataset_id: str = Field(min_length=1, max_length=120)
     name: str = Field(default='', max_length=120)
     rag_config_id: str = Field(default='default', min_length=1, max_length=120)
+
+
+class CreateCaseResultRequest(BaseModel):
+    test_case_id: str = Field(min_length=1, max_length=120)
+    trace_id: str = Field(default='', max_length=120)
+    answer: str = Field(default='', max_length=8000)
+    status: str = Field(default='completed', min_length=1, max_length=40)
+    latency_ms: int = Field(default=0, ge=0)
+    cost_usd: float = Field(default=0, ge=0)
+    error_message: str = Field(default='', max_length=2000)
 
 
 class EvalRunSummary(BaseModel):
@@ -35,6 +45,23 @@ class EvalRunListResponse(BaseModel):
     eval_runs: list[EvalRunResponse]
 
 
+class CaseResultResponse(BaseModel):
+    id: str
+    eval_run_id: str
+    test_case_id: str
+    trace_id: str
+    answer: str
+    status: str
+    latency_ms: int
+    cost_usd: float
+    error_message: str
+    created_at: str
+
+
+class CaseResultListResponse(BaseModel):
+    results: list[CaseResultResponse]
+
+
 @dataclass(frozen=True)
 class EvalRunRecord:
     id: str
@@ -49,6 +76,20 @@ class EvalRunRecord:
     updated_at: str
 
 
+@dataclass(frozen=True)
+class CaseResultRecord:
+    id: str
+    eval_run_id: str
+    test_case_id: str
+    trace_id: str
+    answer: str
+    status: str
+    latency_ms: int
+    cost_usd: float
+    error_message: str
+    created_at: str
+
+
 class EvalRunRepository:
     def create(self, request: CreateEvalRunRequest) -> EvalRunRecord:
         raise NotImplementedError
@@ -59,10 +100,28 @@ class EvalRunRepository:
     def get(self, eval_run_id: str) -> EvalRunRecord | None:
         raise NotImplementedError
 
+    def create_result(
+        self,
+        eval_run_id: str,
+        request: CreateCaseResultRequest,
+    ) -> CaseResultRecord | None:
+        raise NotImplementedError
+
+    def list_results(self, eval_run_id: str) -> list[CaseResultRecord] | None:
+        raise NotImplementedError
+
+    def get_result(
+        self,
+        eval_run_id: str,
+        result_id: str,
+    ) -> CaseResultRecord | None:
+        raise NotImplementedError
+
 
 class InMemoryEvalRunRepository(EvalRunRepository):
     def __init__(self) -> None:
         self._eval_runs: dict[str, EvalRunRecord] = {}
+        self._case_results: dict[str, CaseResultRecord] = {}
 
     def create(self, request: CreateEvalRunRequest) -> EvalRunRecord:
         now = datetime.now(UTC).isoformat()
@@ -91,6 +150,54 @@ class InMemoryEvalRunRepository(EvalRunRepository):
     def get(self, eval_run_id: str) -> EvalRunRecord | None:
         return self._eval_runs.get(eval_run_id)
 
+    def create_result(
+        self,
+        eval_run_id: str,
+        request: CreateCaseResultRequest,
+    ) -> CaseResultRecord | None:
+        eval_run = self._eval_runs.get(eval_run_id)
+        if eval_run is None:
+            return None
+
+        result = CaseResultRecord(
+            id=str(uuid4()),
+            eval_run_id=eval_run_id,
+            test_case_id=request.test_case_id.strip(),
+            trace_id=request.trace_id.strip(),
+            answer=request.answer.strip(),
+            status=request.status.strip(),
+            latency_ms=request.latency_ms,
+            cost_usd=request.cost_usd,
+            error_message=request.error_message.strip(),
+            created_at=datetime.now(UTC).isoformat(),
+        )
+        self._case_results[result.id] = result
+        self._eval_runs[eval_run_id] = apply_result_summary(eval_run, result)
+        return result
+
+    def list_results(self, eval_run_id: str) -> list[CaseResultRecord] | None:
+        if eval_run_id not in self._eval_runs:
+            return None
+
+        results = [
+            result for result in self._case_results.values() if result.eval_run_id == eval_run_id
+        ]
+        return sorted(results, key=lambda result: result.created_at, reverse=True)
+
+    def get_result(
+        self,
+        eval_run_id: str,
+        result_id: str,
+    ) -> CaseResultRecord | None:
+        if eval_run_id not in self._eval_runs:
+            return None
+
+        result = self._case_results.get(result_id)
+        if result is None or result.eval_run_id != eval_run_id:
+            return None
+
+        return result
+
 
 def create_eval_run_router(repository: EvalRunRepository) -> APIRouter:
     router = APIRouter(prefix='/api/v1/eval-runs', tags=['eval-runs'])
@@ -109,17 +216,79 @@ def create_eval_run_router(repository: EvalRunRepository) -> APIRouter:
         eval_run = repository.get(eval_run_id)
 
         if eval_run is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={
-                    'error': 'eval_run_not_found',
-                    'message': 'Eval run was not found.',
-                },
-            )
+            raise_eval_run_not_found()
 
         return to_eval_run_response(eval_run)
 
+    @router.post(
+        '/{eval_run_id}/results',
+        response_model=CaseResultResponse,
+        status_code=status.HTTP_201_CREATED,
+    )
+    def create_case_result(
+        eval_run_id: str,
+        request: CreateCaseResultRequest,
+    ) -> CaseResultResponse:
+        result = repository.create_result(eval_run_id, request)
+
+        if result is None:
+            raise_eval_run_not_found()
+
+        return to_case_result_response(result)
+
+    @router.get('/{eval_run_id}/results', response_model=CaseResultListResponse)
+    def list_case_results(eval_run_id: str) -> CaseResultListResponse:
+        results = repository.list_results(eval_run_id)
+
+        if results is None:
+            raise_eval_run_not_found()
+
+        return CaseResultListResponse(
+            results=[to_case_result_response(result) for result in results]
+        )
+
+    @router.get('/{eval_run_id}/results/{result_id}', response_model=CaseResultResponse)
+    def get_case_result(eval_run_id: str, result_id: str) -> CaseResultResponse:
+        result = repository.get_result(eval_run_id, result_id)
+
+        if result is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    'error': 'case_result_not_found',
+                    'message': 'Eval case result was not found.',
+                },
+            )
+
+        return to_case_result_response(result)
+
     return router
+
+
+def apply_result_summary(eval_run: EvalRunRecord, result: CaseResultRecord) -> EvalRunRecord:
+    failed_cases = eval_run.failed_cases + (1 if result.status == 'failed' else 0)
+    completed_cases = eval_run.completed_cases + (1 if result.status == 'completed' else 0)
+    total_cases = eval_run.total_cases + 1
+    status_value = 'completed' if failed_cases + completed_cases == total_cases else eval_run.status
+
+    return replace(
+        eval_run,
+        status=status_value,
+        total_cases=total_cases,
+        completed_cases=completed_cases,
+        failed_cases=failed_cases,
+        updated_at=datetime.now(UTC).isoformat(),
+    )
+
+
+def raise_eval_run_not_found() -> None:
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail={
+            'error': 'eval_run_not_found',
+            'message': 'Eval run was not found.',
+        },
+    )
 
 
 def to_eval_run_response(eval_run: EvalRunRecord) -> EvalRunResponse:
@@ -136,4 +305,19 @@ def to_eval_run_response(eval_run: EvalRunRecord) -> EvalRunResponse:
         ),
         created_at=eval_run.created_at,
         updated_at=eval_run.updated_at,
+    )
+
+
+def to_case_result_response(result: CaseResultRecord) -> CaseResultResponse:
+    return CaseResultResponse(
+        id=result.id,
+        eval_run_id=result.eval_run_id,
+        test_case_id=result.test_case_id,
+        trace_id=result.trace_id,
+        answer=result.answer,
+        status=result.status,
+        latency_ms=result.latency_ms,
+        cost_usd=result.cost_usd,
+        error_message=result.error_message,
+        created_at=result.created_at,
     )
