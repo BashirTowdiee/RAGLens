@@ -79,6 +79,11 @@ describe('query provider error handling', () => {
       answer: '',
       provider: 'test-provider',
       model: 'unknown',
+      promptVersion: 'query-prompt-v1',
+      config: {
+        topK: 5,
+        retrievalMode: 'vector'
+      },
       usage: {
         retrievedChunks: expect.any(Number),
         citedChunks: 0
