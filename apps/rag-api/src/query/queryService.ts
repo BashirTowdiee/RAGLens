@@ -2,6 +2,7 @@ import type { DocumentRepository } from '../documents/documentRepository.js';
 import type { RetrievalTraceRepository } from '../documents/retrievalTraceRepository.js';
 import type { RetrievedChunkRecord } from '../documents/types.js';
 import {
+  AnswerProviderError,
   DeterministicAnswerProvider,
   type AnswerProvider
 } from './answerProvider.js';
@@ -38,6 +39,16 @@ export type QueryInput = {
   topK?: number;
 };
 
+export class QueryProviderFailure extends Error {
+  constructor(
+    public readonly providerError: AnswerProviderError,
+    public readonly traceId: string
+  ) {
+    super(providerError.message);
+    this.name = 'QueryProviderFailure';
+  }
+}
+
 export class QueryService {
   constructor(
     private readonly documentRepository: DocumentRepository,
@@ -62,39 +73,69 @@ export class QueryService {
     const citations = createCitations(chunks);
     const citationValidation = validateCitations(citations, chunks);
     const prompt = buildQueryPrompt(input.question, chunks);
-    const providerResult = await this.answerProvider.generate({
-      question: input.question,
-      prompt
-    });
-    const latencyMs = Date.now() - startTime;
-    const usage = {
-      retrievedChunks: chunks.length,
-      citedChunks: citations.length,
-      provider: providerResult.provider,
-      model: providerResult.model
-    };
-    const queryTrace = await this.queryTraceRepository.create({
-      question: input.question,
-      answer: providerResult.answer,
-      provider: providerResult.provider,
-      model: providerResult.model,
-      usage: {
-        retrievedChunks: usage.retrievedChunks,
-        citedChunks: usage.citedChunks
-      },
-      latencyMs,
-      citationValidation,
-      citations
-    });
 
-    return {
-      answer: providerResult.answer,
-      citations,
-      citationValidation,
-      traceId: queryTrace.id,
-      usage,
-      latencyMs
-    };
+    try {
+      const providerResult = await this.answerProvider.generate({
+        question: input.question,
+        prompt
+      });
+      const latencyMs = Date.now() - startTime;
+      const usage = {
+        retrievedChunks: chunks.length,
+        citedChunks: citations.length,
+        provider: providerResult.provider,
+        model: providerResult.model
+      };
+      const queryTrace = await this.queryTraceRepository.create({
+        question: input.question,
+        answer: providerResult.answer,
+        provider: providerResult.provider,
+        model: providerResult.model,
+        usage: {
+          retrievedChunks: usage.retrievedChunks,
+          citedChunks: usage.citedChunks
+        },
+        latencyMs,
+        citationValidation,
+        citations
+      });
+
+      return {
+        answer: providerResult.answer,
+        citations,
+        citationValidation,
+        traceId: queryTrace.id,
+        usage,
+        latencyMs
+      };
+    } catch (error) {
+      if (error instanceof AnswerProviderError) {
+        const queryTrace = await this.queryTraceRepository.create({
+          status: 'failed',
+          question: input.question,
+          answer: '',
+          provider: error.provider,
+          model: 'unknown',
+          usage: {
+            retrievedChunks: chunks.length,
+            citedChunks: 0
+          },
+          latencyMs: Date.now() - startTime,
+          citationValidation,
+          citations: [],
+          error: {
+            code: error.code,
+            message: error.message,
+            provider: error.provider,
+            retryable: error.retryable
+          }
+        });
+
+        throw new QueryProviderFailure(error, queryTrace.id);
+      }
+
+      throw error;
+    }
   }
 }
 
