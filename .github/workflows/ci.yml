@@ -75,7 +75,7 @@ jobs:
         run: pytest
 
   docker:
-    name: Docker Compose config
+    name: Docker Compose build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -83,3 +83,6 @@ jobs:
 
       - name: Validate Compose file
         run: docker compose config
+
+      - name: Build Compose images
+        run: docker compose build
