@@ -3,7 +3,7 @@ import { glob } from 'astro/loaders';
 
 const docs = defineCollection({
   loader: glob({
-    pattern: '*.md',
+    pattern: ['*.md', '!AGENTS.md'],
     base: '../docs',
   }),
   schema: z.object({
