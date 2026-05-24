@@ -2,7 +2,21 @@
   "name": "raglens",
   "private": true,
   "version": "0.0.0",
+  "workspaces": [
+    "apps/rag-api",
+    "apps/dashboard",
+    "docs-site"
+  ],
   "scripts": {
+    "dev": "npm run dev:rag-api & npm run dev:eval-api & npm run dev:dashboard",
+    "dev:rag-api": "npm --workspace apps/rag-api run dev",
+    "dev:eval-api": "cd apps/eval-api && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001",
+    "dev:dashboard": "npm --workspace apps/dashboard run dev",
+    "build": "npm --workspace apps/rag-api run build && npm --workspace apps/dashboard run build",
+    "typecheck": "npm --workspace apps/rag-api run typecheck && npm --workspace apps/dashboard run typecheck",
+    "lint": "npm --workspace apps/rag-api run lint && npm --workspace apps/dashboard run lint",
+    "test": "npm --workspace apps/rag-api run test && npm run test:eval-api",
+    "test:eval-api": "cd apps/eval-api && python -m pytest",
     "docs:dev": "npm --prefix docs-site run dev",
     "docs:build": "npm --prefix docs-site run build",
     "docs:preview": "npm --prefix docs-site run preview",
