@@ -149,7 +149,9 @@ class InMemoryDatasetRepository(DatasetRepository):
             return None
 
         test_cases = [
-            test_case for test_case in self._test_cases.values() if test_case.dataset_id == dataset_id
+            test_case
+            for test_case in self._test_cases.values()
+            if test_case.dataset_id == dataset_id
         ]
         return sorted(test_cases, key=lambda test_case: test_case.created_at, reverse=True)
 
