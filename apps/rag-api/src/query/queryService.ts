@@ -8,7 +8,7 @@ import {
 } from './answerProvider.js';
 import { validateCitations, type CitationValidationResult } from './citationValidation.js';
 import { buildQueryPrompt } from './promptBuilder.js';
-import type { QueryTraceRepository } from './queryTraceRepository.js';
+import type { ProviderCallTelemetry, QueryTraceRepository } from './queryTraceRepository.js';
 
 export type QueryCitation = {
   chunkId: string;
@@ -73,6 +73,7 @@ export class QueryService {
     const citations = createCitations(chunks);
     const citationValidation = validateCitations(citations, chunks);
     const prompt = buildQueryPrompt(input.question, chunks);
+    const providerStartTime = Date.now();
 
     try {
       const providerResult = await this.answerProvider.generate({
@@ -80,6 +81,17 @@ export class QueryService {
         prompt
       });
       const latencyMs = Date.now() - startTime;
+      const providerCall: ProviderCallTelemetry = {
+        provider: providerResult.provider,
+        model: providerResult.model,
+        status: 'succeeded',
+        latencyMs: Date.now() - providerStartTime,
+        promptTokens: null,
+        completionTokens: null,
+        totalTokens: null,
+        estimatedCostUsd: null,
+        errorCode: null
+      };
       const usage = {
         retrievedChunks: chunks.length,
         citedChunks: citations.length,
@@ -97,7 +109,8 @@ export class QueryService {
         },
         latencyMs,
         citationValidation,
-        citations
+        citations,
+        providerCall
       });
 
       return {
@@ -110,6 +123,17 @@ export class QueryService {
       };
     } catch (error) {
       if (error instanceof AnswerProviderError) {
+        const providerCall: ProviderCallTelemetry = {
+          provider: error.provider,
+          model: 'unknown',
+          status: 'failed',
+          latencyMs: Date.now() - providerStartTime,
+          promptTokens: null,
+          completionTokens: null,
+          totalTokens: null,
+          estimatedCostUsd: null,
+          errorCode: error.code
+        };
         const queryTrace = await this.queryTraceRepository.create({
           status: 'failed',
           question: input.question,
@@ -123,6 +147,7 @@ export class QueryService {
           latencyMs: Date.now() - startTime,
           citationValidation,
           citations: [],
+          providerCall,
           error: {
             code: error.code,
             message: error.message,
