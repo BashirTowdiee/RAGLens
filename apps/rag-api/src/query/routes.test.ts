@@ -93,6 +93,11 @@ describe('query routes', () => {
       answer: queryBody.answer,
       provider: 'deterministic',
       model: 'deterministic-context-preview-v1',
+      promptVersion: 'query-prompt-v1',
+      config: {
+        topK: 5,
+        retrievalMode: 'vector'
+      },
       usage: {
         retrievedChunks: queryBody.usage.retrievedChunks,
         citedChunks: queryBody.usage.citedChunks
