@@ -24,14 +24,26 @@ export default function HomePage() {
         The dashboard explains how answers were produced, how evaluation runs scored, and which cases regressed.
       </p>
 
-      <section className="panel" style={{ marginTop: '32px' }}>
-        <h2 style={{ marginTop: 0 }}>Corpus explorer</h2>
-        <p style={{ color: '#475569', lineHeight: 1.6 }}>
-          Inspect indexed source documents and generated chunks before running retrieval and evaluation workflows.
-        </p>
-        <Link href="/documents" className="primary-link">
-          View documents
-        </Link>
+      <section className="dashboard-actions">
+        <article className="panel">
+          <h2 style={{ marginTop: 0 }}>Corpus explorer</h2>
+          <p style={{ color: '#475569', lineHeight: 1.6 }}>
+            Inspect indexed source documents and generated chunks before running retrieval and evaluation workflows.
+          </p>
+          <Link href="/documents" className="primary-link">
+            View documents
+          </Link>
+        </article>
+
+        <article className="panel">
+          <h2 style={{ marginTop: 0 }}>Retrieval inspector</h2>
+          <p style={{ color: '#475569', lineHeight: 1.6 }}>
+            Run a retrieval-only query and inspect ranked chunks, source metadata, scores, and heading paths.
+          </p>
+          <Link href="/retrieval" className="primary-link">
+            Inspect retrieval
+          </Link>
+        </article>
       </section>
 
       <section style={{ display: 'grid', gap: '16px', marginTop: '32px' }}>
