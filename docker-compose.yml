@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: raglens-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-raglens}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-raglens}
+      POSTGRES_DB: ${POSTGRES_DB:-raglens}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-raglens} -d ${POSTGRES_DB:-raglens}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rag-api:
+    build:
+      context: ./apps/rag-api
+    container_name: raglens-rag-api
+    environment:
+      NODE_ENV: development
+      PORT: 8000
+      DATABASE_URL: postgres://raglens:raglens@postgres:5432/raglens
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  eval-api:
+    build:
+      context: ./apps/eval-api
+    container_name: raglens-eval-api
+    environment:
+      DATABASE_URL: postgres://raglens:raglens@postgres:5432/raglens
+      RAG_API_BASE_URL: http://rag-api:8000
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rag-api:
+        condition: service_started
+
+  dashboard:
+    build:
+      context: ./apps/dashboard
+    container_name: raglens-dashboard
+    environment:
+      NEXT_PUBLIC_RAG_API_BASE_URL: http://localhost:8000
+      NEXT_PUBLIC_EVAL_API_BASE_URL: http://localhost:8001
+    ports:
+      - "3000:3000"
+    depends_on:
+      - rag-api
+      - eval-api
+
+volumes:
+  postgres-data:
