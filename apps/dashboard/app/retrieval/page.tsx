@@ -66,24 +66,37 @@ export default async function RetrievalPage({ searchParams }: RetrievalPageProps
           </p>
         </section>
       ) : (
-        <section style={{ display: 'grid', gap: '16px', marginTop: '32px' }}>
-          {result.chunks.map((chunk, index) => (
-            <article key={chunk.id} className="panel retrieval-result-card">
-              <div className="chunk-header">
-                <strong>Rank {index + 1}</strong>
-                <span>score {formatScore(chunk.score)}</span>
+        <>
+          {result.traceId ? (
+            <section className="panel trace-summary-card" style={{ marginTop: '32px' }}>
+              <div>
+                <h2>Retrieval trace captured</h2>
+                <p className="heading-path">Trace ID: {result.traceId}</p>
               </div>
-              <h2>{chunk.document.title}</h2>
-              <p className="heading-path">
-                {chunk.document.sourceId} · v{chunk.document.version} · chunk {chunk.chunkIndex + 1}
-              </p>
-              <p className="heading-path">
-                {chunk.headingPath.length > 0 ? chunk.headingPath.join(' / ') : 'No heading'}
-              </p>
-              <pre className="chunk-content">{chunk.content}</pre>
-            </article>
-          ))}
-        </section>
+              <Link href={`/retrieval/traces/${result.traceId}`} className="primary-link">
+                Inspect trace
+              </Link>
+            </section>
+          ) : null}
+          <section style={{ display: 'grid', gap: '16px', marginTop: '32px' }}>
+            {result.chunks.map((chunk, index) => (
+              <article key={chunk.id} className="panel retrieval-result-card">
+                <div className="chunk-header">
+                  <strong>Rank {index + 1}</strong>
+                  <span>score {formatScore(chunk.score)}</span>
+                </div>
+                <h2>{chunk.document.title}</h2>
+                <p className="heading-path">
+                  {chunk.document.sourceId} · v{chunk.document.version} · chunk {chunk.chunkIndex + 1}
+                </p>
+                <p className="heading-path">
+                  {chunk.headingPath.length > 0 ? chunk.headingPath.join(' / ') : 'No heading'}
+                </p>
+                <pre className="chunk-content">{chunk.content}</pre>
+              </article>
+            ))}
+          </section>
+        </>
       )}
     </main>
   );
