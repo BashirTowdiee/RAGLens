@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 const services = [
   {
     name: 'rag-api',
@@ -19,20 +21,22 @@ export default function HomePage() {
         RAG evaluation and observability dashboard
       </h1>
       <p style={{ fontSize: '20px', color: '#475569', lineHeight: 1.6 }}>
-        The dashboard will explain how answers were produced, how evaluation runs scored, and which cases regressed.
+        The dashboard explains how answers were produced, how evaluation runs scored, and which cases regressed.
       </p>
+
+      <section className="panel" style={{ marginTop: '32px' }}>
+        <h2 style={{ marginTop: 0 }}>Corpus explorer</h2>
+        <p style={{ color: '#475569', lineHeight: 1.6 }}>
+          Inspect indexed source documents and generated chunks before running retrieval and evaluation workflows.
+        </p>
+        <Link href="/documents" className="primary-link">
+          View documents
+        </Link>
+      </section>
 
       <section style={{ display: 'grid', gap: '16px', marginTop: '32px' }}>
         {services.map((service) => (
-          <article
-            key={service.name}
-            style={{
-              background: 'white',
-              border: '1px solid #e2e8f0',
-              borderRadius: '16px',
-              padding: '24px'
-            }}
-          >
+          <article key={service.name} className="panel">
             <h2 style={{ marginTop: 0 }}>{service.name}</h2>
             <p style={{ color: '#475569' }}>{service.description}</p>
             <code>{service.href}/api/v1/health</code>
