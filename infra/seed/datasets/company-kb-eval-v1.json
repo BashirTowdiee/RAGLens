@@ -1,0 +1,128 @@
+{
+  "id": "company-kb-eval-v1",
+  "name": "Company Knowledge Base Eval",
+  "version": "1.0.0",
+  "description": "Initial golden dataset for the controlled RAGLens company knowledge base seed corpus.",
+  "testCases": [
+    {
+      "id": "case-001-remote-days-current",
+      "type": "factual",
+      "question": "How many days per week may permanent employees work remotely under the current policy?",
+      "expectedAnswer": "Permanent employees may work remotely up to three days per week after completing probation.",
+      "expectedSourceIds": ["remote-work-policy-v2"],
+      "mustAbstain": false,
+      "metadata": {
+        "topic": "remote_work",
+        "difficulty": "easy"
+      }
+    },
+    {
+      "id": "case-002-remote-policy-version-comparison",
+      "type": "comparison",
+      "question": "What changed between remote work policy v1 and v2 for permanent employees?",
+      "expectedAnswer": "Remote work allowance increased from up to two days per week in v1 to up to three days per week in v2 for permanent employees after probation.",
+      "expectedSourceIds": ["remote-work-policy-v1", "remote-work-policy-v2"],
+      "mustAbstain": false,
+      "metadata": {
+        "topic": "remote_work",
+        "difficulty": "medium"
+      }
+    },
+    {
+      "id": "case-003-thursday-office-rule-date",
+      "type": "temporal",
+      "question": "When does the Thursday office attendance rule begin?",
+      "expectedAnswer": "The Thursday attendance rule applies from 1 July 2026.",
+      "expectedSourceIds": ["remote-work-policy-v2"],
+      "mustAbstain": false,
+      "metadata": {
+        "topic": "remote_work",
+        "difficulty": "easy"
+      }
+    },
+    {
+      "id": "case-004-internet-reimbursement-source",
+      "type": "citation_sensitive",
+      "question": "Can home internet costs be reimbursed and which process handles that reimbursement?",
+      "expectedAnswer": "Home internet costs may be reimbursed up to 60 AUD per month when approved by a manager, and the reimbursement is handled under the remote work process rather than the general expense process.",
+      "expectedSourceIds": ["remote-work-policy-v2", "expense-policy"],
+      "mustAbstain": false,
+      "metadata": {
+        "topic": "expense_policy",
+        "difficulty": "medium"
+      }
+    },
+    {
+      "id": "case-005-sev1-response-targets",
+      "type": "factual",
+      "question": "What are the acknowledgement and external status update targets for a Severity 1 incident?",
+      "expectedAnswer": "Severity 1 incidents require acknowledgement within five minutes and an external status update within 20 minutes.",
+      "expectedSourceIds": ["incident-response-runbook"],
+      "mustAbstain": false,
+      "metadata": {
+        "topic": "incident_response",
+        "difficulty": "easy"
+      }
+    },
+    {
+      "id": "case-006-mobile-rollout-thresholds",
+      "type": "multi_hop",
+      "question": "When can the mobile release owner move rollout to 50 percent, and what crash-free threshold triggers rollback?",
+      "expectedAnswer": "The release owner may increase rollout to 50 percent after crash-free sessions remain above 99.7 percent. A rollback is required when crash-free sessions drop below 99.3 percent.",
+      "expectedSourceIds": ["mobile-release-process"],
+      "mustAbstain": false,
+      "metadata": {
+        "topic": "mobile_release",
+        "difficulty": "medium"
+      }
+    },
+    {
+      "id": "case-007-api-idempotency-retention",
+      "type": "factual",
+      "question": "How long is an API idempotency key retained?",
+      "expectedAnswer": "The idempotency key is retained for 24 hours.",
+      "expectedSourceIds": ["api-integration-guide"],
+      "mustAbstain": false,
+      "metadata": {
+        "topic": "api_integration",
+        "difficulty": "easy"
+      }
+    },
+    {
+      "id": "case-008-refund-trial-threshold",
+      "type": "factual",
+      "question": "What is the trial threshold for refund eligibility?",
+      "expectedAnswer": "The trial threshold is three completed exports or 60 minutes of processed audio, whichever happens first.",
+      "expectedSourceIds": ["refund-policy"],
+      "mustAbstain": false,
+      "metadata": {
+        "topic": "refund_policy",
+        "difficulty": "easy"
+      }
+    },
+    {
+      "id": "case-009-security-escalation-passwords",
+      "type": "citation_sensitive",
+      "question": "What should frontline agents do for suspected account takeover cases, and can they request passwords?",
+      "expectedAnswer": "Suspected account takeover must be escalated to the security queue immediately, and frontline agents must not request passwords, secrets, or private keys.",
+      "expectedSourceIds": ["escalation-process"],
+      "mustAbstain": false,
+      "metadata": {
+        "topic": "support_escalation",
+        "difficulty": "medium"
+      }
+    },
+    {
+      "id": "case-010-payroll-country",
+      "type": "no_answer",
+      "question": "Which payroll provider does RAGLens Corp use in New Zealand?",
+      "expectedAnswer": null,
+      "expectedSourceIds": [],
+      "mustAbstain": true,
+      "metadata": {
+        "topic": "unknown",
+        "difficulty": "easy"
+      }
+    }
+  ]
+}
