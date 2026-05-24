@@ -7,6 +7,7 @@ import {
 } from './answerProvider.js';
 import { validateCitations, type CitationValidationResult } from './citationValidation.js';
 import { buildQueryPrompt } from './promptBuilder.js';
+import type { QueryTraceRepository } from './queryTraceRepository.js';
 
 export type QueryCitation = {
   chunkId: string;
@@ -41,6 +42,7 @@ export class QueryService {
   constructor(
     private readonly documentRepository: DocumentRepository,
     private readonly retrievalTraceRepository: RetrievalTraceRepository,
+    private readonly queryTraceRepository: QueryTraceRepository,
     private readonly answerProvider: AnswerProvider = new DeterministicAnswerProvider()
   ) {}
 
@@ -51,7 +53,7 @@ export class QueryService {
       query: input.question,
       limit: topK
     });
-    const trace = await this.retrievalTraceRepository.create({
+    await this.retrievalTraceRepository.create({
       query: input.question,
       limit: topK,
       durationMs: Date.now() - startTime,
@@ -64,19 +66,34 @@ export class QueryService {
       question: input.question,
       prompt
     });
+    const latencyMs = Date.now() - startTime;
+    const usage = {
+      retrievedChunks: chunks.length,
+      citedChunks: citations.length,
+      provider: providerResult.provider,
+      model: providerResult.model
+    };
+    const queryTrace = await this.queryTraceRepository.create({
+      question: input.question,
+      answer: providerResult.answer,
+      provider: providerResult.provider,
+      model: providerResult.model,
+      usage: {
+        retrievedChunks: usage.retrievedChunks,
+        citedChunks: usage.citedChunks
+      },
+      latencyMs,
+      citationValidation,
+      citations
+    });
 
     return {
       answer: providerResult.answer,
       citations,
       citationValidation,
-      traceId: trace.id,
-      usage: {
-        retrievedChunks: chunks.length,
-        citedChunks: citations.length,
-        provider: providerResult.provider,
-        model: providerResult.model
-      },
-      latencyMs: Date.now() - startTime
+      traceId: queryTrace.id,
+      usage,
+      latencyMs
     };
   }
 }
