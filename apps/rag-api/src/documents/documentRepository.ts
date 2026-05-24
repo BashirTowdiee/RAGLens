@@ -105,30 +105,30 @@ export class InMemoryDocumentRepository implements DocumentRepository {
   async searchChunks(input: SearchChunksInput): Promise<RetrievedChunkRecord[]> {
     const queryEmbedding = this.embeddingProvider.embedText(input.query);
     const limit = input.limit ?? 5;
+    const retrievedChunks: RetrievedChunkRecord[] = [];
 
-    return [...this.chunksByDocumentId.values()]
-      .flat()
-      .map((chunk) => {
-        const document = this.documents.get(chunk.documentId);
-        const embedding = this.embeddingsByChunkId.get(chunk.id);
+    for (const chunk of [...this.chunksByDocumentId.values()].flat()) {
+      const document = this.documents.get(chunk.documentId);
+      const embedding = this.embeddingsByChunkId.get(chunk.id);
 
-        if (!document || !embedding) {
-          return null;
+      if (!document || !embedding) {
+        continue;
+      }
+
+      retrievedChunks.push({
+        ...chunk,
+        score: cosineSimilarity(queryEmbedding, embedding),
+        document: {
+          id: document.id,
+          sourceId: document.sourceId,
+          title: document.title,
+          sourceUri: document.sourceUri,
+          version: document.version
         }
+      });
+    }
 
-        return {
-          ...chunk,
-          score: cosineSimilarity(queryEmbedding, embedding),
-          document: {
-            id: document.id,
-            sourceId: document.sourceId,
-            title: document.title,
-            sourceUri: document.sourceUri,
-            version: document.version
-          }
-        };
-      })
-      .filter((chunk): chunk is RetrievedChunkRecord => chunk !== null)
+    return retrievedChunks
       .sort((left, right) => right.score - left.score || left.chunkIndex - right.chunkIndex)
       .slice(0, limit);
   }
