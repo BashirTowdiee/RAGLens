@@ -5,6 +5,7 @@ import { InMemoryRetrievalTraceRepository } from '../documents/retrievalTraceRep
 import { registerDocumentRoutes } from '../documents/routes.js';
 import { AnswerProviderError, type AnswerProvider } from './answerProvider.js';
 import { QueryService } from './queryService.js';
+import { InMemoryQueryTraceRepository } from './queryTraceRepository.js';
 import { registerQueryRoutes } from './routes.js';
 
 const failingProvider: AnswerProvider = {
@@ -23,10 +24,16 @@ describe('query provider error handling', () => {
     const app = Fastify({ logger: false });
     const documentRepository = new InMemoryDocumentRepository();
     const traceRepository = new InMemoryRetrievalTraceRepository();
-    const queryService = new QueryService(documentRepository, traceRepository, failingProvider);
+    const queryTraceRepository = new InMemoryQueryTraceRepository();
+    const queryService = new QueryService(
+      documentRepository,
+      traceRepository,
+      queryTraceRepository,
+      failingProvider
+    );
 
     await registerDocumentRoutes(app, documentRepository, traceRepository);
-    await registerQueryRoutes(app, queryService);
+    await registerQueryRoutes(app, queryService, queryTraceRepository);
 
     await app.inject({
       method: 'POST',

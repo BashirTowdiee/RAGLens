@@ -55,6 +55,98 @@ describe('query routes', () => {
     });
   });
 
+  it('persists successful query traces and fetches them by id', async () => {
+    const app = buildApp(config);
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/ingest',
+      payload: {
+        sourceId: 'query-trace-policy',
+        title: 'Query Trace Policy',
+        sourceType: 'markdown',
+        version: '1.0.0',
+        content: '# Query Traces\n\n## Persistence\n\nSuccessful query traces are persisted for audit review.'
+      }
+    });
+
+    const queryResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/query',
+      payload: {
+        question: 'What are query traces used for?'
+      }
+    });
+
+    expect(queryResponse.statusCode).toBe(200);
+    const queryBody = queryResponse.json();
+
+    const traceResponse = await app.inject({
+      method: 'GET',
+      url: `/api/v1/queries/${queryBody.traceId}`
+    });
+
+    expect(traceResponse.statusCode).toBe(200);
+    expect(traceResponse.json().trace).toMatchObject({
+      id: queryBody.traceId,
+      question: 'What are query traces used for?',
+      answer: queryBody.answer,
+      provider: 'deterministic',
+      model: 'deterministic-context-preview-v1',
+      usage: {
+        retrievedChunks: queryBody.usage.retrievedChunks,
+        citedChunks: queryBody.usage.citedChunks
+      },
+      citationValidation: queryBody.citationValidation,
+      citations: queryBody.citations
+    });
+  });
+
+  it('lists persisted query traces newest first', async () => {
+    const app = buildApp(config);
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/query',
+      payload: {
+        question: 'First question?'
+      }
+    });
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/query',
+      payload: {
+        question: 'Second question?'
+      }
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/queries'
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().traces.map((trace: { question: string }) => trace.question)).toEqual([
+      'Second question?',
+      'First question?'
+    ]);
+  });
+
+  it('returns not found for missing query traces', async () => {
+    const app = buildApp(config);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/queries/missing-trace'
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({
+      error: 'query_trace_not_found',
+      message: 'Query trace was not found.'
+    });
+  });
+
   it('returns insufficient evidence when there are no indexed chunks', async () => {
     const app = buildApp(config);
 
