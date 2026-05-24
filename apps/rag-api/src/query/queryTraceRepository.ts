@@ -5,6 +5,11 @@ import type { QueryCitation } from './queryService.js';
 
 export type QueryTraceStatus = 'succeeded' | 'failed';
 
+export type QueryTraceConfig = {
+  topK: number;
+  retrievalMode: 'vector';
+};
+
 export type QueryTraceError = {
   code: AnswerProviderErrorCode;
   message: string;
@@ -40,6 +45,8 @@ export type QueryTraceRecord = {
   answer: string;
   provider: string;
   model: string;
+  promptVersion: string;
+  config: QueryTraceConfig;
   usage: {
     retrievedChunks: number;
     citedChunks: number;
@@ -59,6 +66,8 @@ export type CreateQueryTraceInput = {
   answer: string;
   provider: string;
   model: string;
+  promptVersion: string;
+  config: QueryTraceConfig;
   usage: {
     retrievedChunks: number;
     citedChunks: number;
@@ -89,6 +98,8 @@ export class InMemoryQueryTraceRepository implements QueryTraceRepository {
       answer: input.answer,
       provider: input.provider,
       model: input.model,
+      promptVersion: input.promptVersion,
+      config: input.config,
       usage: input.usage,
       latencyMs: input.latencyMs,
       citationValidation: input.citationValidation,

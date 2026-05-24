@@ -8,7 +8,13 @@ import {
 } from './answerProvider.js';
 import { validateCitations, type CitationValidationResult } from './citationValidation.js';
 import { buildQueryPrompt } from './promptBuilder.js';
-import type { ProviderCallTelemetry, QueryTraceRepository } from './queryTraceRepository.js';
+import type {
+  ProviderCallTelemetry,
+  QueryTraceConfig,
+  QueryTraceRepository
+} from './queryTraceRepository.js';
+
+const QUERY_PROMPT_VERSION = 'query-prompt-v1';
 
 export type QueryCitation = {
   chunkId: string;
@@ -60,6 +66,10 @@ export class QueryService {
   async answer(input: QueryInput): Promise<QueryResult> {
     const startTime = Date.now();
     const topK = input.topK ?? 5;
+    const config: QueryTraceConfig = {
+      topK,
+      retrievalMode: 'vector'
+    };
     const chunks = await this.documentRepository.searchChunks({
       query: input.question,
       limit: topK
@@ -103,6 +113,8 @@ export class QueryService {
         answer: providerResult.answer,
         provider: providerResult.provider,
         model: providerResult.model,
+        promptVersion: QUERY_PROMPT_VERSION,
+        config,
         usage: {
           retrievedChunks: usage.retrievedChunks,
           citedChunks: usage.citedChunks
@@ -140,6 +152,8 @@ export class QueryService {
           answer: '',
           provider: error.provider,
           model: 'unknown',
+          promptVersion: QUERY_PROMPT_VERSION,
+          config,
           usage: {
             retrievedChunks: chunks.length,
             citedChunks: 0
