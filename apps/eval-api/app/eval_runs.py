@@ -82,7 +82,11 @@ class InMemoryEvalRunRepository(EvalRunRepository):
         return eval_run
 
     def list(self) -> list[EvalRunRecord]:
-        return sorted(self._eval_runs.values(), key=lambda eval_run: eval_run.created_at, reverse=True)
+        return sorted(
+            self._eval_runs.values(),
+            key=lambda eval_run: eval_run.created_at,
+            reverse=True,
+        )
 
     def get(self, eval_run_id: str) -> EvalRunRecord | None:
         return self._eval_runs.get(eval_run_id)
