@@ -50,6 +50,59 @@ describe('document routes', () => {
     ]);
   });
 
+  it('retrieves ranked chunks for a query with stable source metadata', async () => {
+    const app = buildApp(config);
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/ingest',
+      payload: {
+        sourceId: 'remote-work-policy-search',
+        title: 'Remote Work Search Policy',
+        sourceType: 'markdown',
+        version: '1.0.0',
+        content: '# Remote Work\n\n## Eligibility\n\nEmployees may work remotely two days per week.\n\n## Equipment\n\nEmployees receive laptops and monitors.'
+      }
+    });
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/ingest',
+      payload: {
+        sourceId: 'expense-policy-search',
+        title: 'Expense Search Policy',
+        sourceType: 'markdown',
+        version: '1.0.0',
+        content: '# Expense Policy\n\n## Reimbursement\n\nEmployees can claim approved travel expenses.'
+      }
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/documents/search?q=remote%20employees&limit=2'
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.query).toBe('remote employees');
+    expect(body.chunks).toHaveLength(2);
+    expect(body.chunks[0].score).toBeGreaterThanOrEqual(body.chunks[1].score);
+    expect(body.chunks[0].document.sourceId).toBe('remote-work-policy-search');
+    expect(body.chunks[0].document.title).toBe('Remote Work Search Policy');
+  });
+
+  it('rejects empty retrieval queries', async () => {
+    const app = buildApp(config);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/documents/search?q='
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toBe('invalid_search_query');
+  });
+
   it('rejects empty document content', async () => {
     const app = buildApp(config);
 
