@@ -6,12 +6,15 @@ import type {
   CreateQueryTraceInput,
   QueryTraceChunkRecord,
   QueryTraceCitationRecord,
+  QueryTraceError,
   QueryTraceRecord,
-  QueryTraceRepository
+  QueryTraceRepository,
+  QueryTraceStatus
 } from './queryTraceRepository.js';
 
 type QueryTraceRow = {
   id: string;
+  status: QueryTraceStatus;
   question: string;
   answer: string;
   provider: string;
@@ -20,6 +23,7 @@ type QueryTraceRow = {
   latency_ms: number;
   citation_validation: CitationValidationResult;
   citations: QueryCitation[];
+  error: QueryTraceError | null;
   created_at: Date;
 };
 
@@ -30,6 +34,7 @@ export class PostgresQueryTraceRepository implements QueryTraceRepository {
     const result = await this.pool.query<QueryTraceRow>(
       `INSERT INTO rag.query_traces (
         id,
+        status,
         question,
         answer,
         provider,
@@ -37,11 +42,13 @@ export class PostgresQueryTraceRepository implements QueryTraceRepository {
         usage,
         latency_ms,
         citation_validation,
-        citations
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING id, question, answer, provider, model, usage, latency_ms, citation_validation, citations, created_at`,
+        citations,
+        error
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING id, status, question, answer, provider, model, usage, latency_ms, citation_validation, citations, error, created_at`,
       [
         input.id ?? randomUUID(),
+        input.status ?? 'succeeded',
         input.question,
         input.answer,
         input.provider,
@@ -49,7 +56,8 @@ export class PostgresQueryTraceRepository implements QueryTraceRepository {
         JSON.stringify(input.usage),
         input.latencyMs,
         JSON.stringify(input.citationValidation),
-        JSON.stringify(input.citations)
+        JSON.stringify(input.citations),
+        input.error ? JSON.stringify(input.error) : null
       ]
     );
 
@@ -58,7 +66,7 @@ export class PostgresQueryTraceRepository implements QueryTraceRepository {
 
   async get(traceId: string): Promise<QueryTraceRecord | null> {
     const result = await this.pool.query<QueryTraceRow>(
-      `SELECT id, question, answer, provider, model, usage, latency_ms, citation_validation, citations, created_at
+      `SELECT id, status, question, answer, provider, model, usage, latency_ms, citation_validation, citations, error, created_at
        FROM rag.query_traces
        WHERE id = $1`,
       [traceId]
@@ -69,7 +77,7 @@ export class PostgresQueryTraceRepository implements QueryTraceRepository {
 
   async list(): Promise<QueryTraceRecord[]> {
     const result = await this.pool.query<QueryTraceRow>(
-      `SELECT id, question, answer, provider, model, usage, latency_ms, citation_validation, citations, created_at
+      `SELECT id, status, question, answer, provider, model, usage, latency_ms, citation_validation, citations, error, created_at
        FROM rag.query_traces
        ORDER BY created_at DESC`
     );
@@ -110,6 +118,7 @@ export class PostgresQueryTraceRepository implements QueryTraceRepository {
 function mapQueryTraceRow(row: QueryTraceRow): QueryTraceRecord {
   return {
     id: row.id,
+    status: row.status,
     question: row.question,
     answer: row.answer,
     provider: row.provider,
@@ -118,6 +127,7 @@ function mapQueryTraceRow(row: QueryTraceRow): QueryTraceRecord {
     latencyMs: row.latency_ms,
     citationValidation: row.citation_validation,
     citations: row.citations,
+    error: row.error,
     createdAt: row.created_at.toISOString()
   };
 }
