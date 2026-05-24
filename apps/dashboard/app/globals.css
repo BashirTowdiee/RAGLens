@@ -57,6 +57,13 @@ code {
   text-decoration: none;
 }
 
+.dashboard-actions {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  margin-top: 32px;
+}
+
 .document-card {
   align-items: center;
   background: white;
@@ -124,4 +131,52 @@ code {
   overflow: auto;
   padding: 16px;
   white-space: pre-wrap;
+}
+
+.retrieval-form {
+  align-items: end;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(240px, 1fr) 120px auto;
+  margin-top: 32px;
+  padding: 24px;
+}
+
+.retrieval-form label {
+  color: #475569;
+  display: grid;
+  font-weight: 700;
+  gap: 8px;
+}
+
+.retrieval-form input {
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  color: #0f172a;
+  font: inherit;
+  padding: 12px 14px;
+}
+
+.retrieval-form button {
+  background: #0f172a;
+  border: 0;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 13px 18px;
+}
+
+.retrieval-result-card h2 {
+  margin-bottom: 8px;
+}
+
+@media (max-width: 720px) {
+  .retrieval-form {
+    grid-template-columns: 1fr;
+  }
 }
