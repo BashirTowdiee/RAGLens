@@ -36,7 +36,13 @@ def create_eval_runner_router(
             )
 
         for test_case in test_cases:
-            run_test_case(eval_run_repository, rag_client, eval_run.id, eval_run.rag_config_id, test_case)
+            run_test_case(
+                eval_run_repository,
+                rag_client,
+                eval_run.id,
+                eval_run.rag_config_id,
+                test_case,
+            )
 
         completed = eval_run_repository.get(eval_run.id)
         if completed is None:
