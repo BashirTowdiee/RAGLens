@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { DocumentRepository } from './documentRepository.js';
+import type { RetrievalTraceRepository } from './retrievalTraceRepository.js';
 
 const IngestDocumentSchema = z.object({
   sourceId: z.string().min(1),
@@ -19,7 +20,8 @@ const SearchChunksQuerySchema = z.object({
 
 export async function registerDocumentRoutes(
   app: FastifyInstance,
-  repository: DocumentRepository
+  repository: DocumentRepository,
+  traceRepository: RetrievalTraceRepository
 ) {
   app.post('/api/v1/documents/ingest', async (request, reply) => {
     const parseResult = IngestDocumentSchema.safeParse(request.body);
@@ -59,15 +61,38 @@ export async function registerDocumentRoutes(
       });
     }
 
+    const startTime = Date.now();
+    const limit = parseResult.data.limit ?? 5;
     const chunks = await repository.searchChunks({
       query: parseResult.data.q,
-      limit: parseResult.data.limit
+      limit
+    });
+    const trace = await traceRepository.create({
+      query: parseResult.data.q,
+      limit,
+      durationMs: Date.now() - startTime,
+      chunks
     });
 
     return {
       query: parseResult.data.q,
+      traceId: trace.id,
       chunks
     };
+  });
+
+  app.get('/api/v1/retrieval-traces/:traceId', async (request, reply) => {
+    const params = z.object({ traceId: z.string().min(1) }).parse(request.params);
+    const trace = await traceRepository.get(params.traceId);
+
+    if (!trace) {
+      return reply.status(404).send({
+        error: 'retrieval_trace_not_found',
+        message: 'Retrieval trace was not found.'
+      });
+    }
+
+    return { trace };
   });
 
   app.get('/api/v1/documents/:documentId', async (request, reply) => {
