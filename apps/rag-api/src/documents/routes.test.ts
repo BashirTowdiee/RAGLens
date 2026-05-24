@@ -85,10 +85,62 @@ describe('document routes', () => {
     expect(response.statusCode).toBe(200);
     const body = response.json();
     expect(body.query).toBe('remote employees');
+    expect(body.traceId).toEqual(expect.any(String));
     expect(body.chunks).toHaveLength(2);
     expect(body.chunks[0].score).toBeGreaterThanOrEqual(body.chunks[1].score);
     expect(body.chunks[0].document.sourceId).toBe('remote-work-policy-search');
     expect(body.chunks[0].document.title).toBe('Remote Work Search Policy');
+  });
+
+  it('captures and returns retrieval traces', async () => {
+    const app = buildApp(config);
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/ingest',
+      payload: {
+        sourceId: 'trace-policy-search',
+        title: 'Trace Search Policy',
+        sourceType: 'markdown',
+        version: '1.0.0',
+        content: '# Trace Policy\n\n## Retrieval\n\nRetrieval traces capture query metadata and ranked chunks.'
+      }
+    });
+
+    const searchResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/documents/search?q=retrieval%20traces&limit=1'
+    });
+
+    expect(searchResponse.statusCode).toBe(200);
+    const searchBody = searchResponse.json();
+    expect(searchBody.traceId).toEqual(expect.any(String));
+
+    const traceResponse = await app.inject({
+      method: 'GET',
+      url: `/api/v1/retrieval-traces/${searchBody.traceId}`
+    });
+
+    expect(traceResponse.statusCode).toBe(200);
+    const traceBody = traceResponse.json();
+    expect(traceBody.trace.query).toBe('retrieval traces');
+    expect(traceBody.trace.limit).toBe(1);
+    expect(traceBody.trace.resultCount).toBe(1);
+    expect(traceBody.trace.durationMs).toEqual(expect.any(Number));
+    expect(traceBody.trace.chunks[0].rank).toBe(1);
+    expect(traceBody.trace.chunks[0].sourceId).toBe('trace-policy-search');
+  });
+
+  it('returns 404 for missing retrieval traces', async () => {
+    const app = buildApp(config);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/retrieval-traces/missing-trace-id'
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json().error).toBe('retrieval_trace_not_found');
   });
 
   it('rejects empty retrieval queries', async () => {

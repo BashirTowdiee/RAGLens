@@ -31,6 +31,34 @@ export type RetrievedChunkRecord = DocumentChunkRecord & {
   document: Pick<DocumentRecord, 'id' | 'sourceId' | 'title' | 'sourceUri' | 'version'>;
 };
 
+export type RetrievalTraceChunk = {
+  rank: number;
+  chunkId: string;
+  documentId: string;
+  sourceId: string;
+  title: string;
+  score: number;
+  chunkIndex: number;
+  headingPath: string[];
+};
+
+export type RetrievalTraceRecord = {
+  id: string;
+  query: string;
+  limit: number;
+  resultCount: number;
+  durationMs: number;
+  chunks: RetrievalTraceChunk[];
+  createdAt: string;
+};
+
+export type CreateRetrievalTraceInput = {
+  query: string;
+  limit: number;
+  durationMs: number;
+  chunks: RetrievedChunkRecord[];
+};
+
 export type IngestDocumentInput = {
   sourceId: string;
   title: string;
