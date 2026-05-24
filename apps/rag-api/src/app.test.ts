@@ -4,7 +4,8 @@ import { buildApp } from './app.js';
 const config = {
   NODE_ENV: 'test',
   PORT: 8000,
-  DATABASE_URL: 'postgres://raglens:raglens@localhost:5432/raglens'
+  DATABASE_URL: 'postgres://raglens:raglens@localhost:5432/raglens',
+  DOCUMENT_REPOSITORY: 'memory' as const
 };
 
 describe('rag-api health endpoint', () => {
