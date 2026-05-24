@@ -7,6 +7,7 @@ import type {
   ProviderCallTelemetry,
   QueryTraceChunkRecord,
   QueryTraceCitationRecord,
+  QueryTraceConfig,
   QueryTraceError,
   QueryTraceRecord,
   QueryTraceRepository,
@@ -20,6 +21,8 @@ type QueryTraceRow = {
   answer: string;
   provider: string;
   model: string;
+  prompt_version: string;
+  config: QueryTraceConfig;
   usage: QueryTraceRecord['usage'];
   latency_ms: number;
   citation_validation: CitationValidationResult;
@@ -41,14 +44,16 @@ export class PostgresQueryTraceRepository implements QueryTraceRepository {
         answer,
         provider,
         model,
+        prompt_version,
+        config,
         usage,
         latency_ms,
         citation_validation,
         citations,
         provider_call,
         error
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-      RETURNING id, status, question, answer, provider, model, usage, latency_ms, citation_validation, citations, provider_call, error, created_at`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      RETURNING id, status, question, answer, provider, model, prompt_version, config, usage, latency_ms, citation_validation, citations, provider_call, error, created_at`,
       [
         input.id ?? randomUUID(),
         input.status ?? 'succeeded',
@@ -56,6 +61,8 @@ export class PostgresQueryTraceRepository implements QueryTraceRepository {
         input.answer,
         input.provider,
         input.model,
+        input.promptVersion,
+        JSON.stringify(input.config),
         JSON.stringify(input.usage),
         input.latencyMs,
         JSON.stringify(input.citationValidation),
@@ -70,7 +77,7 @@ export class PostgresQueryTraceRepository implements QueryTraceRepository {
 
   async get(traceId: string): Promise<QueryTraceRecord | null> {
     const result = await this.pool.query<QueryTraceRow>(
-      `SELECT id, status, question, answer, provider, model, usage, latency_ms, citation_validation, citations, provider_call, error, created_at
+      `SELECT id, status, question, answer, provider, model, prompt_version, config, usage, latency_ms, citation_validation, citations, provider_call, error, created_at
        FROM rag.query_traces
        WHERE id = $1`,
       [traceId]
@@ -81,7 +88,7 @@ export class PostgresQueryTraceRepository implements QueryTraceRepository {
 
   async list(): Promise<QueryTraceRecord[]> {
     const result = await this.pool.query<QueryTraceRow>(
-      `SELECT id, status, question, answer, provider, model, usage, latency_ms, citation_validation, citations, provider_call, error, created_at
+      `SELECT id, status, question, answer, provider, model, prompt_version, config, usage, latency_ms, citation_validation, citations, provider_call, error, created_at
        FROM rag.query_traces
        ORDER BY created_at DESC`
     );
@@ -127,6 +134,8 @@ function mapQueryTraceRow(row: QueryTraceRow): QueryTraceRecord {
     answer: row.answer,
     provider: row.provider,
     model: row.model,
+    promptVersion: row.prompt_version,
+    config: row.config,
     usage: row.usage,
     latencyMs: row.latency_ms,
     citationValidation: row.citation_validation,
