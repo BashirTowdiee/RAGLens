@@ -52,12 +52,38 @@ export async function registerQueryRoutes(
     const trace = await queryTraceRepository.get(params.traceId);
 
     if (!trace) {
-      return reply.status(404).send({
-        error: 'query_trace_not_found',
-        message: 'Query trace was not found.'
-      });
+      return queryTraceNotFound(reply);
     }
 
     return reply.status(200).send({ trace });
+  });
+
+  app.get('/api/v1/queries/:traceId/chunks', async (request, reply) => {
+    const params = request.params as { traceId: string };
+    const chunks = await queryTraceRepository.listChunks(params.traceId);
+
+    if (!chunks) {
+      return queryTraceNotFound(reply);
+    }
+
+    return reply.status(200).send({ chunks });
+  });
+
+  app.get('/api/v1/queries/:traceId/citations', async (request, reply) => {
+    const params = request.params as { traceId: string };
+    const citations = await queryTraceRepository.listCitations(params.traceId);
+
+    if (!citations) {
+      return queryTraceNotFound(reply);
+    }
+
+    return reply.status(200).send({ citations });
+  });
+}
+
+function queryTraceNotFound(reply: { status: (statusCode: number) => { send: (payload: unknown) => unknown } }) {
+  return reply.status(404).send({
+    error: 'query_trace_not_found',
+    message: 'Query trace was not found.'
   });
 }
