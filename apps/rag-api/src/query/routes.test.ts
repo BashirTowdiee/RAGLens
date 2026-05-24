@@ -212,6 +212,7 @@ describe('query routes', () => {
         question: 'First question?'
       }
     });
+    await new Promise((resolve) => setTimeout(resolve, 2));
     await app.inject({
       method: 'POST',
       url: '/api/v1/query',
