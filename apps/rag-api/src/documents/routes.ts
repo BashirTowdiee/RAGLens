@@ -12,6 +12,11 @@ const IngestDocumentSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional()
 });
 
+const SearchChunksQuerySchema = z.object({
+  q: z.string().trim().min(1),
+  limit: z.coerce.number().int().min(1).max(20).optional()
+});
+
 export async function registerDocumentRoutes(
   app: FastifyInstance,
   repository: DocumentRepository
@@ -42,6 +47,28 @@ export async function registerDocumentRoutes(
   app.get('/api/v1/documents', async () => ({
     documents: await repository.listDocuments()
   }));
+
+  app.get('/api/v1/documents/search', async (request, reply) => {
+    const parseResult = SearchChunksQuerySchema.safeParse(request.query);
+
+    if (!parseResult.success) {
+      return reply.status(400).send({
+        error: 'invalid_search_query',
+        message: 'Search query is invalid.',
+        issues: parseResult.error.issues
+      });
+    }
+
+    const chunks = await repository.searchChunks({
+      query: parseResult.data.q,
+      limit: parseResult.data.limit
+    });
+
+    return {
+      query: parseResult.data.q,
+      chunks
+    };
+  });
 
   app.get('/api/v1/documents/:documentId', async (request, reply) => {
     const params = z.object({ documentId: z.string().min(1) }).parse(request.params);
