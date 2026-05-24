@@ -1,15 +1,18 @@
 from fastapi.testclient import TestClient
 
+from app.eval_runner import run_test_case
+from app.eval_runs import CreateEvalRunRequest, InMemoryEvalRunRepository
 from app.main import app
+from app.rag_client import RagApiClient
 
 client = TestClient(app)
 
 
-def create_eval_run(name: str = 'Baseline run') -> dict:
+def create_eval_run(name: str = 'Baseline run', dataset_id: str = 'company-kb-eval-v1') -> dict:
     response = client.post(
         '/api/v1/eval-runs',
         json={
-            'dataset_id': 'company-kb-eval-v1',
+            'dataset_id': dataset_id,
             'name': name,
             'rag_config_id': 'vector-default',
         },
@@ -33,6 +36,30 @@ def create_case_result(eval_run_id: str, status: str = 'completed') -> dict:
     )
     assert response.status_code == 201
     return response.json()
+
+
+def create_dataset_with_test_case() -> tuple[dict, dict]:
+    dataset_response = client.post(
+        '/api/v1/datasets',
+        json={
+            'name': 'Runner Dataset',
+            'version': 'v1',
+            'description': 'Dataset used by the sequential eval runner.',
+        },
+    )
+    assert dataset_response.status_code == 201
+    dataset = dataset_response.json()
+
+    test_case_response = client.post(
+        f"/api/v1/datasets/{dataset['id']}/test-cases",
+        json={
+            'question': 'What is the refund window?',
+            'expected_answer': 'Customers can request refunds within 30 days.',
+            'reference_citations': ['refund-policy.md'],
+        },
+    )
+    assert test_case_response.status_code == 201
+    return dataset, test_case_response.json()
 
 
 def test_create_and_fetch_eval_run() -> None:
@@ -187,3 +214,69 @@ def test_returns_not_found_for_missing_case_result() -> None:
         'error': 'case_result_not_found',
         'message': 'Eval case result was not found.',
     }
+
+
+def test_execute_eval_run_calls_stub_rag_client_and_stores_result() -> None:
+    dataset, test_case = create_dataset_with_test_case()
+    eval_run = create_eval_run('Executed run', dataset_id=dataset['id'])
+
+    response = client.post(f"/api/v1/eval-runs/{eval_run['id']}/execute")
+
+    assert response.status_code == 200
+    executed = response.json()
+    assert executed['status'] == 'completed'
+    assert executed['summary'] == {
+        'total_cases': 1,
+        'completed_cases': 1,
+        'failed_cases': 0,
+    }
+
+    results_response = client.get(f"/api/v1/eval-runs/{eval_run['id']}/results")
+
+    assert results_response.status_code == 200
+    results = results_response.json()['results']
+    assert len(results) == 1
+    assert results[0]['test_case_id'] == test_case['id']
+    assert results[0]['status'] == 'completed'
+    assert results[0]['trace_id'].startswith('stub-')
+    assert results[0]['answer'] == 'Stub answer for: What is the refund window?'
+
+
+def test_execute_eval_run_returns_not_found_for_missing_dataset() -> None:
+    eval_run = create_eval_run('Missing dataset run', dataset_id='missing-dataset')
+
+    response = client.post(f"/api/v1/eval-runs/{eval_run['id']}/execute")
+
+    assert response.status_code == 404
+    assert response.json()['detail'] == {
+        'error': 'dataset_not_found',
+        'message': 'Dataset was not found.',
+    }
+
+
+def test_runner_stores_error_result_when_rag_client_fails() -> None:
+    class FailingRagClient(RagApiClient):
+        def query(self, question: str, rag_config_id: str):
+            raise RuntimeError('RAG API timeout')
+
+    repository = InMemoryEvalRunRepository()
+    eval_run = repository.create(
+        CreateEvalRunRequest(dataset_id='dataset-id', name='Failure run', rag_config_id='config-id')
+    )
+    test_case = type(
+        'TestCase',
+        (),
+        {'id': 'case-id', 'question': 'Will this timeout?'},
+    )()
+
+    run_test_case(repository, FailingRagClient(), eval_run.id, eval_run.rag_config_id, test_case)
+
+    results = repository.list_results(eval_run.id)
+    assert results is not None
+    assert len(results) == 1
+    assert results[0].status == 'failed'
+    assert results[0].error_message == 'RAG API timeout'
+
+    updated = repository.get(eval_run.id)
+    assert updated is not None
+    assert updated.failed_cases == 1
