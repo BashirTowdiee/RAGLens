@@ -1,6 +1,16 @@
 import { randomUUID } from 'node:crypto';
+import type { AnswerProviderErrorCode } from './answerProvider.js';
 import type { CitationValidationResult } from './citationValidation.js';
 import type { QueryCitation } from './queryService.js';
+
+export type QueryTraceStatus = 'succeeded' | 'failed';
+
+export type QueryTraceError = {
+  code: AnswerProviderErrorCode;
+  message: string;
+  provider: string;
+  retryable: boolean;
+};
 
 export type QueryTraceChunkRecord = QueryCitation & {
   traceId: string;
@@ -13,6 +23,7 @@ export type QueryTraceCitationRecord = QueryCitation & {
 
 export type QueryTraceRecord = {
   id: string;
+  status: QueryTraceStatus;
   question: string;
   answer: string;
   provider: string;
@@ -24,11 +35,13 @@ export type QueryTraceRecord = {
   latencyMs: number;
   citationValidation: CitationValidationResult;
   citations: QueryCitation[];
+  error: QueryTraceError | null;
   createdAt: string;
 };
 
 export type CreateQueryTraceInput = {
   id?: string;
+  status?: QueryTraceStatus;
   question: string;
   answer: string;
   provider: string;
@@ -40,6 +53,7 @@ export type CreateQueryTraceInput = {
   latencyMs: number;
   citationValidation: CitationValidationResult;
   citations: QueryCitation[];
+  error?: QueryTraceError | null;
 };
 
 export interface QueryTraceRepository {
@@ -56,6 +70,7 @@ export class InMemoryQueryTraceRepository implements QueryTraceRepository {
   async create(input: CreateQueryTraceInput): Promise<QueryTraceRecord> {
     const trace: QueryTraceRecord = {
       id: input.id ?? randomUUID(),
+      status: input.status ?? 'succeeded',
       question: input.question,
       answer: input.answer,
       provider: input.provider,
@@ -64,6 +79,7 @@ export class InMemoryQueryTraceRepository implements QueryTraceRepository {
       latencyMs: input.latencyMs,
       citationValidation: input.citationValidation,
       citations: input.citations,
+      error: input.error ?? null,
       createdAt: new Date().toISOString()
     };
 

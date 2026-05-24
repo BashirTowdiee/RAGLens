@@ -1,7 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { AnswerProviderError } from './answerProvider.js';
-import { QueryService } from './queryService.js';
+import { QueryProviderFailure, QueryService } from './queryService.js';
 import type { QueryTraceRepository } from './queryTraceRepository.js';
 
 const QueryRequestSchema = z.object({
@@ -29,13 +28,14 @@ export async function registerQueryRoutes(
       const result = await queryService.answer(parseResult.data);
       return reply.status(200).send(result);
     } catch (error) {
-      if (error instanceof AnswerProviderError) {
+      if (error instanceof QueryProviderFailure) {
         return reply.status(502).send({
           error: 'answer_provider_failed',
-          code: error.code,
-          message: error.message,
-          provider: error.provider,
-          retryable: error.retryable
+          code: error.providerError.code,
+          message: error.providerError.message,
+          provider: error.providerError.provider,
+          retryable: error.providerError.retryable,
+          traceId: error.traceId
         });
       }
 

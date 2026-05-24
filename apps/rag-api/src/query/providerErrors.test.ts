@@ -20,7 +20,7 @@ const failingProvider: AnswerProvider = {
 };
 
 describe('query provider error handling', () => {
-  it('returns a structured provider failure response', async () => {
+  it('returns a structured provider failure response and persists a failed trace', async () => {
     const app = Fastify({ logger: false });
     const documentRepository = new InMemoryDocumentRepository();
     const traceRepository = new InMemoryRetrievalTraceRepository();
@@ -56,12 +56,40 @@ describe('query provider error handling', () => {
     });
 
     expect(response.statusCode).toBe(502);
-    expect(response.json()).toMatchObject({
+    const body = response.json();
+    expect(body).toMatchObject({
       error: 'answer_provider_failed',
       code: 'provider_timeout',
       message: 'The answer provider timed out.',
       provider: 'test-provider',
-      retryable: true
+      retryable: true,
+      traceId: expect.any(String)
+    });
+
+    const traceResponse = await app.inject({
+      method: 'GET',
+      url: `/api/v1/queries/${body.traceId}`
+    });
+
+    expect(traceResponse.statusCode).toBe(200);
+    expect(traceResponse.json().trace).toMatchObject({
+      id: body.traceId,
+      status: 'failed',
+      question: 'How are provider failures returned?',
+      answer: '',
+      provider: 'test-provider',
+      model: 'unknown',
+      usage: {
+        retrievedChunks: expect.any(Number),
+        citedChunks: 0
+      },
+      citations: [],
+      error: {
+        code: 'provider_timeout',
+        message: 'The answer provider timed out.',
+        provider: 'test-provider',
+        retryable: true
+      }
     });
   });
 });
