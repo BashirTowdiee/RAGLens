@@ -4,7 +4,7 @@ This file tracks the active roadmap position for automation cycles.
 
 ## Active stage
 
-Stage 2 - Corpus, ingestion, and metadata baseline.
+Phase 4 - Embeddings and vector retrieval.
 
 ## Source roadmap documents
 
@@ -13,24 +13,39 @@ Stage 2 - Corpus, ingestion, and metadata baseline.
 
 ## Completed stages
 
-- Stage 1 - Local platform foundation: PR #1 merged.
-- Stage 2 seed corpus and eval fixture: PR #2 merged.
-- Stage 2 Markdown ingestion and document chunk endpoints: PR #3 merged.
-- Stage 2 database-backed document ingestion and seed command: PR #4 merged.
+- Phase 1 - Local platform foundation: PR #1 merged.
+- Phase 2 - Sample corpus and seed data: PR #2 merged.
+- Phase 3 - RAG API document ingestion: PRs #3, #4, #5, #7, and #8 merged.
+- Local Docker Compose build blocker: PR #6 merged.
 
 ## Current active PR
 
-- PR pending: Stage 2 Postgres repository integration test path
-- Branch: `stage-2-postgres-integration-tests`
+- PR pending: roadmap re-anchor after ingestion-stage completion
+- Branch: `reanchor-stage-4`
 
-## Stage 2 acceptance criteria advanced by current slice
+## Completed ingestion-stage acceptance criteria
 
-- CI starts a Postgres + pgvector service for rag-api tests.
-- Postgres-backed document repository is tested against real `rag.documents` and `rag.document_chunks` tables.
-- Integration tests verify insert, list, chunk ordering, and re-ingestion replacement behaviour.
-- Local test execution can skip Postgres integration tests unless `TEST_DATABASE_URL` is set.
+- Controlled seed corpus and golden eval fixture exist.
+- `rag.documents` and `rag.document_chunks` migrations exist.
+- Markdown documents can be ingested through `rag-api`.
+- Markdown is chunked with stable chunk order and heading paths.
+- Document list, document detail, and chunk list endpoints exist.
+- Postgres-backed document repository exists and is covered by integration tests.
+- Dashboard exposes document list/detail screens with generated chunk previews.
+- Seed ingestion workflow is documented.
 
-## Next remaining Stage 2 work after integration test slice
+## Next stage acceptance criteria
 
-- Add dashboard document list/detail screens.
-- Add seed ingestion documentation to README or developer docs.
+Begin Phase 4 with a narrow embeddings and vector retrieval slice:
+
+- Add embedding provider interface with deterministic local/test implementation.
+- Store embedding vectors for document chunks in Postgres with pgvector.
+- Add a retrieval endpoint that returns ranked chunks for a query.
+- Add tests for deterministic retrieval, empty query rejection, and stable source metadata.
+
+## Explicit non-goals for the next slice
+
+- Do not add answer generation yet.
+- Do not add PDF parsing, OCR, or async ingestion.
+- Do not add evaluation scoring yet.
+- Do not add dashboard retrieval visualisation until the API retrieval path exists.
