@@ -29,6 +29,27 @@ export type RetrievedChunkRecord = DocumentChunkRecord & {
   document: Pick<DocumentRecord, 'id' | 'sourceId' | 'title' | 'sourceUri' | 'version'>;
 };
 
+export type RetrievalTraceChunk = {
+  rank: number;
+  chunkId: string;
+  documentId: string;
+  sourceId: string;
+  title: string;
+  score: number;
+  chunkIndex: number;
+  headingPath: string[];
+};
+
+export type RetrievalTraceRecord = {
+  id: string;
+  query: string;
+  limit: number;
+  resultCount: number;
+  durationMs: number;
+  chunks: RetrievalTraceChunk[];
+  createdAt: string;
+};
+
 export type DocumentsResult =
   | { ok: true; documents: DocumentRecord[] }
   | { ok: false; error: string };
@@ -38,7 +59,11 @@ export type DocumentDetailResult =
   | { ok: false; error: string };
 
 export type RetrievalResult =
-  | { ok: true; query: string; chunks: RetrievedChunkRecord[] }
+  | { ok: true; query: string; traceId?: string; chunks: RetrievedChunkRecord[] }
+  | { ok: false; error: string };
+
+export type RetrievalTraceResult =
+  | { ok: true; trace: RetrievalTraceRecord }
   | { ok: false; error: string };
 
 export function getRagApiBaseUrl(): string {
@@ -117,18 +142,45 @@ export async function fetchRetrievalResults(query: string, limit = 5): Promise<R
 
     const body = (await response.json()) as {
       query?: string;
+      traceId?: string;
       chunks?: RetrievedChunkRecord[];
     };
 
     return {
       ok: true,
       query: body.query ?? trimmedQuery,
+      traceId: body.traceId,
       chunks: body.chunks ?? []
     };
   } catch (error) {
     return {
       ok: false,
       error: error instanceof Error ? error.message : 'Unable to fetch retrieval results.'
+    };
+  }
+}
+
+export async function fetchRetrievalTrace(traceId: string): Promise<RetrievalTraceResult> {
+  try {
+    const response = await fetch(`${getRagApiBaseUrl()}/api/v1/retrieval-traces/${traceId}`, {
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      return { ok: false, error: `rag-api returned HTTP ${response.status}` };
+    }
+
+    const body = (await response.json()) as { trace?: RetrievalTraceRecord };
+
+    if (!body.trace) {
+      return { ok: false, error: 'rag-api response did not include a retrieval trace.' };
+    }
+
+    return { ok: true, trace: body.trace };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Unable to fetch retrieval trace.'
     };
   }
 }
