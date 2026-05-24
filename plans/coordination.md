@@ -1,40 +1,38 @@
 # Coordination
 
-## 2026-05-24T22:12:00+10:00
+## 2026-05-25T00:45:00+10:00
 
-Selected action: fix CI blocker on existing roadmap PR.
+Selected action: Re-anchor roadmap after ingestion-stage completion.
 
-Active stage: Stage 1 - Local platform foundation.
+Active stage: Phase 4 - Embeddings and vector retrieval.
 
 Acceptance criteria advanced:
-- CI workflow validates Node, Python, docs, and Docker Compose configuration.
-- Existing bootstrap PR remains the active roadmap implementation slice.
+- Planning state now reflects merged PRs #1 through #8.
+- Completed ingestion-stage work is summarised from repository and PR state.
+- Next implementation stage is clearly set to embeddings and vector retrieval.
+- Next slice non-goals are documented to avoid broad scope creep.
 
 Files touched:
-- docs-site/src/content.config.ts
+- plans/roadmap.md
 - plans/coordination.md
 - plans/workers/raglens-automation.md
-- plans/events/.gitkeep
+- plans/events/2026-05-25-0045-reanchor-stage-4.md
 
 PR/branch:
-- PR #1: chore: bootstrap RAGLens monorepo foundation
-- Branch: bootstrap/monorepo-foundation
+- Branch: reanchor-stage-4
 
 Commit/head SHA:
-- 9735d64057f433faa393600a0b768e33c170541b
+- Pending PR creation.
 
 Tests/checks run:
-- CI run 1 had Node typecheck, rag-api test, dashboard build, Python lint/test, and Docker Compose config passing.
-- CI run 1 failed only at docs:check because docs/AGENTS.md was included as Astro content without frontmatter.
-- Applied narrow fix to exclude docs/AGENTS.md from the docs content collection.
-- CI run 2 is queued for the new head SHA.
+- Local checks not run from connector environment.
+- Planning-only update; CI should still validate docs and repository health once PR opens.
 
-CI status: queued.
+CI status: PR not opened yet.
 
-Merge status: not merged. PR is open and mergeable, awaiting CI.
+Merge status: not merged.
 
-Blockers:
-- Pending CI run 2.
+Blockers: none.
 
 Next recommended action:
-- Re-check CI for PR #1. If green and merge policy allows, merge with expected head SHA.
+- Open PR and wait for CI.
