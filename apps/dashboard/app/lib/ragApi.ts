@@ -24,12 +24,21 @@ export type DocumentChunkRecord = {
   createdAt: string;
 };
 
+export type RetrievedChunkRecord = DocumentChunkRecord & {
+  score: number;
+  document: Pick<DocumentRecord, 'id' | 'sourceId' | 'title' | 'sourceUri' | 'version'>;
+};
+
 export type DocumentsResult =
   | { ok: true; documents: DocumentRecord[] }
   | { ok: false; error: string };
 
 export type DocumentDetailResult =
   | { ok: true; document: DocumentRecord; chunks: DocumentChunkRecord[] }
+  | { ok: false; error: string };
+
+export type RetrievalResult =
+  | { ok: true; query: string; chunks: RetrievedChunkRecord[] }
   | { ok: false; error: string };
 
 export function getRagApiBaseUrl(): string {
@@ -81,6 +90,45 @@ export async function fetchDocumentDetail(documentId: string): Promise<DocumentD
     return {
       ok: false,
       error: error instanceof Error ? error.message : 'Unable to fetch document detail.'
+    };
+  }
+}
+
+export async function fetchRetrievalResults(query: string, limit = 5): Promise<RetrievalResult> {
+  const trimmedQuery = query.trim();
+
+  if (!trimmedQuery) {
+    return { ok: true, query: '', chunks: [] };
+  }
+
+  try {
+    const searchParams = new URLSearchParams({
+      q: trimmedQuery,
+      limit: String(limit)
+    });
+    const response = await fetch(
+      `${getRagApiBaseUrl()}/api/v1/documents/search?${searchParams.toString()}`,
+      { cache: 'no-store' }
+    );
+
+    if (!response.ok) {
+      return { ok: false, error: `rag-api returned HTTP ${response.status}` };
+    }
+
+    const body = (await response.json()) as {
+      query?: string;
+      chunks?: RetrievedChunkRecord[];
+    };
+
+    return {
+      ok: true,
+      query: body.query ?? trimmedQuery,
+      chunks: body.chunks ?? []
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Unable to fetch retrieval results.'
     };
   }
 }
