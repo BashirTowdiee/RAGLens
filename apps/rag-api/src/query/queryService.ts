@@ -5,6 +5,7 @@ import {
   DeterministicAnswerProvider,
   type AnswerProvider
 } from './answerProvider.js';
+import { validateCitations, type CitationValidationResult } from './citationValidation.js';
 import { buildQueryPrompt } from './promptBuilder.js';
 
 export type QueryCitation = {
@@ -20,6 +21,7 @@ export type QueryCitation = {
 export type QueryResult = {
   answer: string;
   citations: QueryCitation[];
+  citationValidation: CitationValidationResult;
   traceId: string;
   usage: {
     retrievedChunks: number;
@@ -56,6 +58,7 @@ export class QueryService {
       chunks
     });
     const citations = createCitations(chunks);
+    const citationValidation = validateCitations(citations, chunks);
     const prompt = buildQueryPrompt(input.question, chunks);
     const providerResult = await this.answerProvider.generate({
       question: input.question,
@@ -65,6 +68,7 @@ export class QueryService {
     return {
       answer: providerResult.answer,
       citations,
+      citationValidation,
       traceId: trace.id,
       usage: {
         retrievedChunks: chunks.length,
