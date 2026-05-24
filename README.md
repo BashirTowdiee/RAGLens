@@ -20,7 +20,7 @@ apps/
 
 infra/
   migrations/    PostgreSQL and pgvector schema bootstrap
-  seed/          Future seed documents and eval datasets
+  seed/          Controlled seed documents and eval datasets
 
 packages/
   shared/        Shared contracts that are safe to reuse across TypeScript workspaces
@@ -31,14 +31,16 @@ docs-site/       Astro static documentation site that renders docs from docs/
 
 ## Current bootstrap scope
 
-The first implementation slice provides:
+The current implementation provides:
 
 - `rag-api` health endpoint at `GET /api/v1/health`
 - `eval-api` health endpoint at `GET /api/v1/health`
-- `dashboard` shell page
+- `rag-api` Markdown document ingestion and chunk inspection endpoints
+- Postgres-backed document storage with `rag.documents` and `rag.document_chunks`
+- seed corpus and golden eval fixture under `infra/seed`
+- dashboard document list/detail screens for corpus inspection
 - PostgreSQL + pgvector via Docker Compose
-- initial `rag` and `eval` schemas
-- CI checks for Node, Python, docs, and Docker Compose configuration
+- CI checks for Node, Python, docs, Docker Compose config, and Docker Compose image builds
 
 ## Local setup
 
@@ -77,6 +79,22 @@ rag-api:   http://localhost:8000/api/v1/health
 eval-api:  http://localhost:8001/api/v1/health
 Postgres:  localhost:5432
 ```
+
+## Seed ingestion
+
+Load the controlled seed corpus into `rag-api`:
+
+```bash
+npm --workspace apps/rag-api run seed:documents
+```
+
+Then inspect indexed documents in the dashboard:
+
+```text
+http://localhost:3000/documents
+```
+
+See `docs/seed-ingestion.md` for the full workflow and troubleshooting notes.
 
 ## Development commands
 
