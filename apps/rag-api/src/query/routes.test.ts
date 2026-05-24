@@ -102,6 +102,90 @@ describe('query routes', () => {
     });
   });
 
+  it('lists persisted query trace chunks in rank order', async () => {
+    const app = buildApp(config);
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/ingest',
+      payload: {
+        sourceId: 'query-trace-chunks-policy',
+        title: 'Query Trace Chunks Policy',
+        sourceType: 'markdown',
+        version: '1.0.0',
+        content: '# Query Trace Chunks\n\n## Rank\n\nRetrieved chunks are listed by rank for audit review.'
+      }
+    });
+
+    const queryResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/query',
+      payload: {
+        question: 'How are retrieved chunks listed?'
+      }
+    });
+
+    expect(queryResponse.statusCode).toBe(200);
+    const queryBody = queryResponse.json();
+
+    const chunksResponse = await app.inject({
+      method: 'GET',
+      url: `/api/v1/queries/${queryBody.traceId}/chunks`
+    });
+
+    expect(chunksResponse.statusCode).toBe(200);
+    const chunks = chunksResponse.json().chunks;
+    expect(chunks.length).toBe(queryBody.citations.length);
+    expect(chunks[0]).toMatchObject({
+      traceId: queryBody.traceId,
+      chunkId: queryBody.citations[0].chunkId,
+      rank: 1,
+      sourceId: 'query-trace-chunks-policy'
+    });
+  });
+
+  it('lists persisted query trace citations with citation indexes', async () => {
+    const app = buildApp(config);
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/ingest',
+      payload: {
+        sourceId: 'query-trace-citations-policy',
+        title: 'Query Trace Citations Policy',
+        sourceType: 'markdown',
+        version: '1.0.0',
+        content: '# Query Trace Citations\n\n## Citation Index\n\nCitations are listed with stable citation indexes.'
+      }
+    });
+
+    const queryResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/query',
+      payload: {
+        question: 'How are citations listed?'
+      }
+    });
+
+    expect(queryResponse.statusCode).toBe(200);
+    const queryBody = queryResponse.json();
+
+    const citationsResponse = await app.inject({
+      method: 'GET',
+      url: `/api/v1/queries/${queryBody.traceId}/citations`
+    });
+
+    expect(citationsResponse.statusCode).toBe(200);
+    const citations = citationsResponse.json().citations;
+    expect(citations.length).toBe(queryBody.citations.length);
+    expect(citations[0]).toMatchObject({
+      traceId: queryBody.traceId,
+      citationIndex: 1,
+      chunkId: queryBody.citations[0].chunkId,
+      sourceId: 'query-trace-citations-policy'
+    });
+  });
+
   it('lists persisted query traces newest first', async () => {
     const app = buildApp(config);
 
@@ -135,16 +219,26 @@ describe('query routes', () => {
   it('returns not found for missing query traces', async () => {
     const app = buildApp(config);
 
-    const response = await app.inject({
+    const traceResponse = await app.inject({
       method: 'GET',
       url: '/api/v1/queries/missing-trace'
     });
-
-    expect(response.statusCode).toBe(404);
-    expect(response.json()).toEqual({
-      error: 'query_trace_not_found',
-      message: 'Query trace was not found.'
+    const chunksResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/queries/missing-trace/chunks'
     });
+    const citationsResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/queries/missing-trace/citations'
+    });
+
+    for (const response of [traceResponse, chunksResponse, citationsResponse]) {
+      expect(response.statusCode).toBe(404);
+      expect(response.json()).toEqual({
+        error: 'query_trace_not_found',
+        message: 'Query trace was not found.'
+      });
+    }
   });
 
   it('returns insufficient evidence when there are no indexed chunks', async () => {

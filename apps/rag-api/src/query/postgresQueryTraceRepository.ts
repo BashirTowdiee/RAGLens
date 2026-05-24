@@ -4,6 +4,8 @@ import type { CitationValidationResult } from './citationValidation.js';
 import type { QueryCitation } from './queryService.js';
 import type {
   CreateQueryTraceInput,
+  QueryTraceChunkRecord,
+  QueryTraceCitationRecord,
   QueryTraceRecord,
   QueryTraceRepository
 } from './queryTraceRepository.js';
@@ -73,6 +75,35 @@ export class PostgresQueryTraceRepository implements QueryTraceRepository {
     );
 
     return result.rows.map(mapQueryTraceRow);
+  }
+
+  async listChunks(traceId: string): Promise<QueryTraceChunkRecord[] | null> {
+    const trace = await this.get(traceId);
+
+    if (!trace) {
+      return null;
+    }
+
+    return trace.citations
+      .map((citation) => ({
+        ...citation,
+        traceId
+      }))
+      .sort((a, b) => a.rank - b.rank);
+  }
+
+  async listCitations(traceId: string): Promise<QueryTraceCitationRecord[] | null> {
+    const trace = await this.get(traceId);
+
+    if (!trace) {
+      return null;
+    }
+
+    return trace.citations.map((citation, index) => ({
+      ...citation,
+      traceId,
+      citationIndex: index + 1
+    }));
   }
 }
 
