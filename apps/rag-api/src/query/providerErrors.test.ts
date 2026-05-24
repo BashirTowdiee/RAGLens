@@ -84,6 +84,17 @@ describe('query provider error handling', () => {
         citedChunks: 0
       },
       citations: [],
+      providerCall: {
+        provider: 'test-provider',
+        model: 'unknown',
+        status: 'failed',
+        latencyMs: expect.any(Number),
+        promptTokens: null,
+        completionTokens: null,
+        totalTokens: null,
+        estimatedCostUsd: null,
+        errorCode: 'provider_timeout'
+      },
       error: {
         code: 'provider_timeout',
         message: 'The answer provider timed out.',
