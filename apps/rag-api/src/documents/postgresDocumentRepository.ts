@@ -4,10 +4,17 @@ import type {
   DocumentChunkRecord,
   DocumentRecord,
   IngestDocumentInput,
-  IngestDocumentResult
+  IngestDocumentResult,
+  RetrievedChunkRecord,
+  SearchChunksInput
 } from './types.js';
 import { chunkMarkdown, contentHash } from './markdownChunker.js';
 import type { DocumentRepository } from './documentRepository.js';
+import {
+  DeterministicEmbeddingProvider,
+  vectorToSql,
+  type EmbeddingProvider
+} from './embeddings.js';
 
 type DocumentRow = {
   id: string;
@@ -35,8 +42,19 @@ type ChunkRow = {
   created_at: Date;
 };
 
+type SearchChunkRow = ChunkRow & {
+  score: number;
+  source_id: string;
+  title: string;
+  source_uri: string | null;
+  version: string;
+};
+
 export class PostgresDocumentRepository implements DocumentRepository {
-  constructor(private readonly pool: Pool) {}
+  constructor(
+    private readonly pool: Pool,
+    private readonly embeddingProvider: EmbeddingProvider = new DeterministicEmbeddingProvider()
+  ) {}
 
   async ingest(input: IngestDocumentInput): Promise<IngestDocumentResult> {
     const chunks = chunkMarkdown(input.content);
@@ -64,9 +82,10 @@ export class PostgresDocumentRepository implements DocumentRepository {
             content,
             token_count_estimate,
             content_hash,
+            embedding,
             metadata
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          RETURNING *`,
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::vector, $9)
+          RETURNING id, document_id, chunk_index, heading_path, content, token_count_estimate, content_hash, metadata, created_at`,
           [
             randomUUID(),
             document.id,
@@ -75,6 +94,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
             chunk.content,
             chunk.tokenCountEstimate,
             chunk.contentHash,
+            vectorToSql(this.embeddingProvider.embedText(chunk.content)),
             {}
           ]
         );
@@ -108,10 +128,50 @@ export class PostgresDocumentRepository implements DocumentRepository {
 
   async listChunks(documentId: string): Promise<DocumentChunkRecord[]> {
     const result = await this.pool.query<ChunkRow>(
-      'SELECT * FROM rag.document_chunks WHERE document_id = $1 ORDER BY chunk_index ASC',
+      'SELECT id, document_id, chunk_index, heading_path, content, token_count_estimate, content_hash, metadata, created_at FROM rag.document_chunks WHERE document_id = $1 ORDER BY chunk_index ASC',
       [documentId]
     );
     return result.rows.map(mapChunkRow);
+  }
+
+  async searchChunks(input: SearchChunksInput): Promise<RetrievedChunkRecord[]> {
+    const limit = input.limit ?? 5;
+    const queryEmbedding = vectorToSql(this.embeddingProvider.embedText(input.query));
+    const result = await this.pool.query<SearchChunkRow>(
+      `SELECT
+        chunk.id,
+        chunk.document_id,
+        chunk.chunk_index,
+        chunk.heading_path,
+        chunk.content,
+        chunk.token_count_estimate,
+        chunk.content_hash,
+        chunk.metadata,
+        chunk.created_at,
+        document.source_id,
+        document.title,
+        document.source_uri,
+        document.version,
+        1 - (chunk.embedding <=> $1::vector) AS score
+      FROM rag.document_chunks chunk
+      INNER JOIN rag.documents document ON document.id = chunk.document_id
+      WHERE chunk.embedding IS NOT NULL
+      ORDER BY chunk.embedding <=> $1::vector ASC, chunk.chunk_index ASC
+      LIMIT $2`,
+      [queryEmbedding, limit]
+    );
+
+    return result.rows.map((row) => ({
+      ...mapChunkRow(row),
+      score: Number(row.score),
+      document: {
+        id: row.document_id,
+        sourceId: row.source_id,
+        title: row.title,
+        sourceUri: row.source_uri ?? undefined,
+        version: row.version
+      }
+    }));
   }
 
   private async upsertDocument(
