@@ -9,7 +9,7 @@ const config = {
 };
 
 describe('query routes', () => {
-  it('answers with structured citations and trace metadata', async () => {
+  it('answers with structured citations and provider metadata', async () => {
     const app = buildApp(config);
 
     await app.inject({
@@ -40,6 +40,8 @@ describe('query routes', () => {
     expect(body.latencyMs).toEqual(expect.any(Number));
     expect(body.usage.retrievedChunks).toBeGreaterThan(0);
     expect(body.usage.citedChunks).toBe(body.citations.length);
+    expect(body.usage.provider).toBe('deterministic');
+    expect(body.usage.model).toBe('deterministic-context-preview-v1');
     expect(body.citations[0]).toMatchObject({
       sourceId: 'query-remote-work-policy',
       title: 'Query Remote Work Policy',
@@ -62,7 +64,12 @@ describe('query routes', () => {
     const body = response.json();
     expect(body.answer).toContain('I do not have enough retrieved context');
     expect(body.citations).toEqual([]);
-    expect(body.usage).toEqual({ retrievedChunks: 0, citedChunks: 0 });
+    expect(body.usage).toEqual({
+      retrievedChunks: 0,
+      citedChunks: 0,
+      provider: 'deterministic',
+      model: 'deterministic-context-preview-v1'
+    });
     expect(body.traceId).toEqual(expect.any(String));
   });
 
