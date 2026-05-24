@@ -26,6 +26,11 @@ export type DocumentChunkRecord = {
   createdAt: string;
 };
 
+export type RetrievedChunkRecord = DocumentChunkRecord & {
+  score: number;
+  document: Pick<DocumentRecord, 'id' | 'sourceId' | 'title' | 'sourceUri' | 'version'>;
+};
+
 export type IngestDocumentInput = {
   sourceId: string;
   title: string;
@@ -39,4 +44,9 @@ export type IngestDocumentInput = {
 export type IngestDocumentResult = {
   document: DocumentRecord;
   chunks: DocumentChunkRecord[];
+};
+
+export type SearchChunksInput = {
+  query: string;
+  limit?: number;
 };
