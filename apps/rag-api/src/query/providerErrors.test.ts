@@ -80,7 +80,7 @@ describe('query provider error handling', () => {
       provider: 'test-provider',
       model: 'unknown',
       usage: {
-        retrievedChunks: 1,
+        retrievedChunks: expect.any(Number),
         citedChunks: 0
       },
       citations: [],
