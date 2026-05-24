@@ -8,7 +8,9 @@ import {
 } from './documents/postgresDocumentRepository.js';
 import { PostgresRetrievalTraceRepository } from './documents/postgresRetrievalTraceRepository.js';
 import { InMemoryRetrievalTraceRepository } from './documents/retrievalTraceRepository.js';
+import { PostgresQueryTraceRepository } from './query/postgresQueryTraceRepository.js';
 import { QueryService } from './query/queryService.js';
+import { InMemoryQueryTraceRepository } from './query/queryTraceRepository.js';
 import { registerQueryRoutes } from './query/routes.js';
 
 export function buildApp(config: AppConfig) {
@@ -23,7 +25,14 @@ export function buildApp(config: AppConfig) {
   const retrievalTraceRepository = documentPool
     ? new PostgresRetrievalTraceRepository(documentPool)
     : new InMemoryRetrievalTraceRepository();
-  const queryService = new QueryService(documentRepository, retrievalTraceRepository);
+  const queryTraceRepository = documentPool
+    ? new PostgresQueryTraceRepository(documentPool)
+    : new InMemoryQueryTraceRepository();
+  const queryService = new QueryService(
+    documentRepository,
+    retrievalTraceRepository,
+    queryTraceRepository
+  );
 
   app.get('/api/v1/health', async () => ({
     status: 'ok',
@@ -33,7 +42,7 @@ export function buildApp(config: AppConfig) {
 
   app.register(async (instance) => {
     await registerDocumentRoutes(instance, documentRepository, retrievalTraceRepository);
-    await registerQueryRoutes(instance, queryService);
+    await registerQueryRoutes(instance, queryService, queryTraceRepository);
   });
 
   return app;
