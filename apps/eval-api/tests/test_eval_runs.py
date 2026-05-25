@@ -403,7 +403,7 @@ def test_execute_eval_run_calls_stub_rag_client_and_stores_result() -> None:
         'error_cases': 0,
         'pass_rate': 0.0,
         'failure_types': {
-            'retrieval_miss': 1,
+            'unsupported_claims': 1,
         },
     }
 
