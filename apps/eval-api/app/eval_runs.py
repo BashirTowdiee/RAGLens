@@ -172,6 +172,16 @@ class EvalRunScoreRollup:
     failure_types: dict[str, int]
 
 
+@dataclass(frozen=True)
+class JudgePersistenceFields:
+    judge_scores: dict[str, float | None]
+    judge_unsupported_claims: list[str]
+    judge_missing_important_points: list[str]
+    judge_verdict: str
+    judge_rationale: str
+    judge_error: str
+
+
 class EvalRunRepository:
     def create(self, request: CreateEvalRunRequest) -> EvalRunRecord:
         raise NotImplementedError
@@ -446,6 +456,33 @@ def get_effective_failure_type(result: CaseResultRecord) -> str:
         if result.judge.verdict in {'fail', 'warning', 'error'}:
             return 'judge_verdict'
     return result.scores.failure_type
+
+
+def to_judge_persistence_fields(result: CaseResultRecord) -> JudgePersistenceFields:
+    if result.judge is None:
+        return JudgePersistenceFields(
+            judge_scores={},
+            judge_unsupported_claims=[],
+            judge_missing_important_points=[],
+            judge_verdict='',
+            judge_rationale='',
+            judge_error=result.judge_error,
+        )
+
+    return JudgePersistenceFields(
+        judge_scores={
+            'groundedness': result.judge.scores.groundedness,
+            'correctness': result.judge.scores.correctness,
+            'completeness': result.judge.scores.completeness,
+            'citationSupport': result.judge.scores.citation_support,
+            'refusalQuality': result.judge.scores.refusal_quality,
+        },
+        judge_unsupported_claims=result.judge.unsupported_claims,
+        judge_missing_important_points=result.judge.missing_important_points,
+        judge_verdict=result.judge.verdict,
+        judge_rationale=result.judge.rationale,
+        judge_error=result.judge_error,
+    )
 
 
 def raise_eval_run_not_found() -> None:
