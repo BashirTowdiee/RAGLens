@@ -12,6 +12,7 @@ from app.judging import (
     JudgeEvaluation,
     JudgeEvaluationInput,
     JudgeProvider,
+    JudgeProviderError,
     JudgeScores,
 )
 from app.scoring import CitationScores, DeterministicScores, RetrievalScores, score_case_result
@@ -120,6 +121,7 @@ class CaseResultResponse(BaseModel):
     error_message: str
     scores: DeterministicScoreResponse
     judge: JudgeEvaluationResponse | None
+    judge_error: str
     created_at: str
 
 
@@ -157,6 +159,7 @@ class CaseResultRecord:
     error_message: str
     scores: DeterministicScores
     judge: JudgeEvaluation | None
+    judge_error: str
     created_at: str
 
 
@@ -247,8 +250,9 @@ class InMemoryEvalRunRepository(EvalRunRepository):
             status=request.status,
         )
         judge = None
+        judge_error = ''
         if eval_run.judge_enabled:
-            judge = score_judge_result(request, self._judge_provider)
+            judge, judge_error = score_judge_result(request, self._judge_provider)
 
         result = CaseResultRecord(
             id=str(uuid4()),
@@ -264,6 +268,7 @@ class InMemoryEvalRunRepository(EvalRunRepository):
             error_message=request.error_message.strip(),
             scores=scores,
             judge=judge,
+            judge_error=judge_error,
             created_at=datetime.now(UTC).isoformat(),
         )
         self._case_results[result.id] = result
@@ -363,22 +368,28 @@ def create_eval_run_router(repository: EvalRunRepository) -> APIRouter:
 def score_judge_result(
     request: CreateCaseResultRequest,
     judge_provider: JudgeProvider,
-) -> JudgeEvaluation | None:
+) -> tuple[JudgeEvaluation | None, str]:
     expected_answer = request.expected_answer.strip()
     if not expected_answer and not request.no_answer_expected:
-        return None
+        return None, ''
 
-    return judge_provider.evaluate(
-        JudgeEvaluationInput(
-            question=request.question.strip(),
-            expected_answer=expected_answer,
-            generated_answer=request.answer.strip(),
-            expected_sources=request.expected_sources,
-            retrieved_context=request.retrieved_context,
-            citations=request.citations,
-            no_answer_expected=request.no_answer_expected,
+    try:
+        return (
+            judge_provider.evaluate(
+                JudgeEvaluationInput(
+                    question=request.question.strip(),
+                    expected_answer=expected_answer,
+                    generated_answer=request.answer.strip(),
+                    expected_sources=request.expected_sources,
+                    retrieved_context=request.retrieved_context,
+                    citations=request.citations,
+                    no_answer_expected=request.no_answer_expected,
+                )
+            ),
+            '',
         )
-    )
+    except JudgeProviderError as exc:
+        return None, str(exc)
 
 
 def apply_result_summary(eval_run: EvalRunRecord, result: CaseResultRecord) -> EvalRunRecord:
@@ -408,6 +419,8 @@ def calculate_score_rollup(results: list[CaseResultRecord]) -> EvalRunScoreRollu
         failure_type = result.scores.failure_type
         if failure_type:
             failure_types[failure_type] = failure_types.get(failure_type, 0) + 1
+        if result.judge_error:
+            failure_types['judge_error'] = failure_types.get('judge_error', 0) + 1
 
     return EvalRunScoreRollup(
         passed_cases=passed_cases,
@@ -472,6 +485,7 @@ def to_case_result_response(result: CaseResultRecord) -> CaseResultResponse:
         error_message=result.error_message,
         scores=to_deterministic_score_response(result.scores),
         judge=to_judge_evaluation_response(result.judge),
+        judge_error=result.judge_error,
         created_at=result.created_at,
     )
 
