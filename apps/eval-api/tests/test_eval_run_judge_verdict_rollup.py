@@ -7,7 +7,10 @@ from app.eval_runs import (
 from app.judging import JsonJudgeProvider
 
 
-def make_judge_provider(verdict: str, unsupported_claims: list[str] | None = None) -> JsonJudgeProvider:
+def make_judge_provider(
+    verdict: str,
+    unsupported_claims: list[str] | None = None,
+) -> JsonJudgeProvider:
     unsupported = unsupported_claims or []
     unsupported_json = ', '.join(f'"{claim}"' for claim in unsupported)
     return JsonJudgeProvider(
@@ -47,7 +50,11 @@ def create_scored_result(repository: InMemoryEvalRunRepository, eval_run_id: str
 def test_judge_fail_verdict_removes_case_from_pass_rate() -> None:
     repository = InMemoryEvalRunRepository(judge_provider=make_judge_provider('fail'))
     eval_run = repository.create(
-        CreateEvalRunRequest(dataset_id='dataset-id', name='Judge fail run', rag_config_id='config-id')
+        CreateEvalRunRequest(
+            dataset_id='dataset-id',
+            name='Judge fail run',
+            rag_config_id='config-id',
+        )
     )
 
     create_scored_result(repository, eval_run.id)
@@ -65,7 +72,11 @@ def test_judge_fail_verdict_removes_case_from_pass_rate() -> None:
 def test_judge_warning_verdict_counts_as_warning() -> None:
     repository = InMemoryEvalRunRepository(judge_provider=make_judge_provider('warning'))
     eval_run = repository.create(
-        CreateEvalRunRequest(dataset_id='dataset-id', name='Judge warning run', rag_config_id='config-id')
+        CreateEvalRunRequest(
+            dataset_id='dataset-id',
+            name='Judge warning run',
+            rag_config_id='config-id',
+        )
     )
 
     create_scored_result(repository, eval_run.id)
@@ -82,7 +93,11 @@ def test_judge_warning_verdict_counts_as_warning() -> None:
 def test_judge_error_verdict_counts_as_error() -> None:
     repository = InMemoryEvalRunRepository(judge_provider=make_judge_provider('error'))
     eval_run = repository.create(
-        CreateEvalRunRequest(dataset_id='dataset-id', name='Judge error run', rag_config_id='config-id')
+        CreateEvalRunRequest(
+            dataset_id='dataset-id',
+            name='Judge error run',
+            rag_config_id='config-id',
+        )
     )
 
     create_scored_result(repository, eval_run.id)
@@ -98,10 +113,17 @@ def test_judge_error_verdict_counts_as_error() -> None:
 
 def test_unsupported_claims_use_specific_failure_type() -> None:
     repository = InMemoryEvalRunRepository(
-        judge_provider=make_judge_provider('fail', unsupported_claims=['Unsupported policy claim.'])
+        judge_provider=make_judge_provider(
+            'fail',
+            unsupported_claims=['Unsupported policy claim.'],
+        )
     )
     eval_run = repository.create(
-        CreateEvalRunRequest(dataset_id='dataset-id', name='Unsupported claim run', rag_config_id='config-id')
+        CreateEvalRunRequest(
+            dataset_id='dataset-id',
+            name='Unsupported claim run',
+            rag_config_id='config-id',
+        )
     )
 
     create_scored_result(repository, eval_run.id)
