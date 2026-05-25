@@ -21,6 +21,7 @@ class CreateEvalRunRequest(BaseModel):
     dataset_id: str = Field(min_length=1, max_length=120)
     name: str = Field(default='', max_length=120)
     rag_config_id: str = Field(default='default', min_length=1, max_length=120)
+    judge_enabled: bool = True
 
 
 class CreateCaseResultRequest(BaseModel):
@@ -56,6 +57,7 @@ class EvalRunResponse(BaseModel):
     dataset_id: str
     name: str
     rag_config_id: str
+    judge_enabled: bool
     status: str
     summary: EvalRunSummary
     created_at: str
@@ -131,6 +133,7 @@ class EvalRunRecord:
     dataset_id: str
     name: str
     rag_config_id: str
+    judge_enabled: bool
     status: str
     total_cases: int
     completed_cases: int
@@ -207,6 +210,7 @@ class InMemoryEvalRunRepository(EvalRunRepository):
             dataset_id=request.dataset_id.strip(),
             name=request.name.strip(),
             rag_config_id=request.rag_config_id.strip(),
+            judge_enabled=request.judge_enabled,
             status='queued',
             total_cases=0,
             completed_cases=0,
@@ -242,7 +246,10 @@ class InMemoryEvalRunRepository(EvalRunRepository):
             citations=request.citations,
             status=request.status,
         )
-        judge = score_judge_result(request, self._judge_provider)
+        judge = None
+        if eval_run.judge_enabled:
+            judge = score_judge_result(request, self._judge_provider)
+
         result = CaseResultRecord(
             id=str(uuid4()),
             eval_run_id=eval_run_id,
@@ -433,6 +440,7 @@ def to_eval_run_response(
         dataset_id=eval_run.dataset_id,
         name=eval_run.name,
         rag_config_id=eval_run.rag_config_id,
+        judge_enabled=eval_run.judge_enabled,
         status=eval_run.status,
         summary=EvalRunSummary(
             total_cases=eval_run.total_cases,
