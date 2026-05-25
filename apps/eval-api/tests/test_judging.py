@@ -1,7 +1,5 @@
 import json
 
-import pytest
-
 from app.judging import (
     HeuristicJudgeProvider,
     JudgeEvaluationInput,
@@ -9,6 +7,7 @@ from app.judging import (
     MalformedJudgeOutputError,
     parse_judge_output,
 )
+import pytest
 
 
 def test_parse_valid_judge_output() -> None:
