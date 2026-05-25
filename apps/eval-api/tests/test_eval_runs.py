@@ -302,8 +302,8 @@ def test_case_result_updates_eval_run_summary() -> None:
         'error_cases': 1,
         'pass_rate': 0,
         'failure_types': {
+            'missing_citation': 1,
             'provider_error': 1,
-            'retrieval_miss': 1,
         },
     }
 
