@@ -7,6 +7,7 @@ from app.judging import (
     JsonJudgeProvider,
     JudgeEvaluationInput,
     MalformedJudgeOutputError,
+    build_judge_prompt,
     parse_judge_output,
 )
 
@@ -88,6 +89,72 @@ def test_json_judge_provider_uses_structured_parser() -> None:
 
     assert evaluation.verdict == 'pass'
     assert evaluation.rationale == 'grounded'
+
+
+def test_build_judge_prompt_includes_expected_inputs() -> None:
+    prompt = build_judge_prompt(
+        JudgeEvaluationInput(
+            question='What is the refund policy?',
+            expected_answer='Customers can request refunds within 30 days.',
+            generated_answer='Customers can request refunds within 30 days. [refund-policy.md]',
+            expected_sources=['refund-policy.md'],
+            retrieved_context=['Refund policy: refunds are available within 30 days.'],
+            citations=['refund-policy.md'],
+        )
+    )
+
+    assert prompt.version == 'judge-prompt-v1'
+    assert 'Return strict JSON' in prompt.system
+    assert 'scores.groundedness' in prompt.system
+    assert 'verdict must be one of pass, fail, warning, or error'.lower() in prompt.user.lower()
+
+    payload = json.loads(prompt.user.split('\n\n', maxsplit=1)[1])
+    assert payload == {
+        'question': 'What is the refund policy?',
+        'expectedAnswer': 'Customers can request refunds within 30 days.',
+        'generatedAnswer': 'Customers can request refunds within 30 days. [refund-policy.md]',
+        'expectedSources': ['refund-policy.md'],
+        'retrievedContext': ['Refund policy: refunds are available within 30 days.'],
+        'citations': ['refund-policy.md'],
+        'noAnswerExpected': False,
+    }
+
+
+def test_build_judge_prompt_cleans_empty_list_items() -> None:
+    prompt = build_judge_prompt(
+        JudgeEvaluationInput(
+            question=' What is the refund policy? ',
+            expected_answer=' Customers can request refunds within 30 days. ',
+            generated_answer=' Customers can request refunds within 30 days. ',
+            expected_sources=[' refund-policy.md ', ''],
+            retrieved_context=[' Refund policy content. ', ''],
+            citations=[' refund-policy.md ', ''],
+        )
+    )
+
+    payload = json.loads(prompt.user.split('\n\n', maxsplit=1)[1])
+    assert payload['question'] == 'What is the refund policy?'
+    assert payload['expectedAnswer'] == 'Customers can request refunds within 30 days.'
+    assert payload['generatedAnswer'] == 'Customers can request refunds within 30 days.'
+    assert payload['expectedSources'] == ['refund-policy.md']
+    assert payload['retrievedContext'] == ['Refund policy content.']
+    assert payload['citations'] == ['refund-policy.md']
+
+
+def test_build_judge_prompt_includes_no_answer_instruction() -> None:
+    prompt = build_judge_prompt(
+        JudgeEvaluationInput(
+            question='What is the office pet policy?',
+            expected_answer='',
+            generated_answer='I cannot answer because there is insufficient evidence.',
+            no_answer_expected=True,
+        )
+    )
+
+    payload = json.loads(prompt.user.split('\n\n', maxsplit=1)[1])
+    assert payload['noAnswerExpected'] is True
+    assert 'score refusalQuality' in prompt.user
+    assert 'insufficient evidence' in prompt.user
 
 
 def test_heuristic_judge_passes_grounded_answer() -> None:
