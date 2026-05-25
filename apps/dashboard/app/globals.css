@@ -127,6 +127,33 @@ code {
   overflow-wrap: anywhere;
 }
 
+.answer-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  margin-top: 24px;
+}
+
+.answer-grid section,
+.judge-panel {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  color: #334155;
+  line-height: 1.6;
+  padding: 16px;
+}
+
+.answer-grid h4,
+.judge-panel h4 {
+  color: #0f172a;
+  margin-top: 0;
+}
+
+.judge-panel {
+  margin-top: 24px;
+}
+
 .chunk-header {
   align-items: center;
   display: flex;
