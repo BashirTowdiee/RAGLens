@@ -83,6 +83,11 @@ def test_create_and_fetch_eval_run() -> None:
         'total_cases': 0,
         'completed_cases': 0,
         'failed_cases': 0,
+        'passed_cases': 0,
+        'warning_cases': 0,
+        'error_cases': 0,
+        'pass_rate': 0,
+        'failure_types': {},
     }
     assert eval_run['created_at']
     assert eval_run['updated_at']
@@ -195,6 +200,78 @@ def test_case_result_includes_deterministic_scores() -> None:
     }
 
 
+def test_eval_run_summary_includes_score_rollups() -> None:
+    eval_run = create_eval_run('Score rollup run')
+
+    pass_response = client.post(
+        f"/api/v1/eval-runs/{eval_run['id']}/results",
+        json={
+            'test_case_id': 'case-pass',
+            'trace_id': 'trace-pass',
+            'answer': 'Customers can request refunds within 30 days.',
+            'status': 'completed',
+            'latency_ms': 100,
+            'cost_usd': 0,
+            'error_message': '',
+            'expected_sources': ['refund-policy.md'],
+            'retrieved_sources': ['refund-policy.md'],
+            'citations': ['refund-policy.md'],
+        },
+    )
+    assert pass_response.status_code == 201
+
+    fail_response = client.post(
+        f"/api/v1/eval-runs/{eval_run['id']}/results",
+        json={
+            'test_case_id': 'case-fail',
+            'trace_id': 'trace-fail',
+            'answer': 'Wrong answer.',
+            'status': 'completed',
+            'latency_ms': 100,
+            'cost_usd': 0,
+            'error_message': '',
+            'expected_sources': ['refund-policy.md'],
+            'retrieved_sources': ['pricing.md'],
+            'citations': ['refund-policy.md'],
+        },
+    )
+    assert fail_response.status_code == 201
+
+    error_response = client.post(
+        f"/api/v1/eval-runs/{eval_run['id']}/results",
+        json={
+            'test_case_id': 'case-error',
+            'trace_id': '',
+            'answer': '',
+            'status': 'failed',
+            'latency_ms': 0,
+            'cost_usd': 0,
+            'error_message': 'RAG API timeout',
+            'expected_sources': ['refund-policy.md'],
+            'retrieved_sources': [],
+            'citations': [],
+        },
+    )
+    assert error_response.status_code == 201
+
+    detail_response = client.get(f"/api/v1/eval-runs/{eval_run['id']}")
+
+    assert detail_response.status_code == 200
+    assert detail_response.json()['summary'] == {
+        'total_cases': 3,
+        'completed_cases': 2,
+        'failed_cases': 1,
+        'passed_cases': 1,
+        'warning_cases': 0,
+        'error_cases': 1,
+        'pass_rate': 1 / 3,
+        'failure_types': {
+            'provider_error': 1,
+            'retrieval_miss': 1,
+        },
+    }
+
+
 def test_list_eval_case_results_contains_created_result() -> None:
     eval_run = create_eval_run('Result list run')
     result = create_case_result(eval_run['id'])
@@ -220,6 +297,14 @@ def test_case_result_updates_eval_run_summary() -> None:
         'total_cases': 2,
         'completed_cases': 1,
         'failed_cases': 1,
+        'passed_cases': 0,
+        'warning_cases': 0,
+        'error_cases': 1,
+        'pass_rate': 0,
+        'failure_types': {
+            'missing_citation': 1,
+            'provider_error': 1,
+        },
     }
 
 
@@ -269,6 +354,13 @@ def test_execute_eval_run_calls_stub_rag_client_and_stores_result() -> None:
         'total_cases': 1,
         'completed_cases': 1,
         'failed_cases': 0,
+        'passed_cases': 0,
+        'warning_cases': 0,
+        'error_cases': 0,
+        'pass_rate': 0,
+        'failure_types': {
+            'missing_citation': 1,
+        },
     }
 
     results_response = client.get(f"/api/v1/eval-runs/{eval_run['id']}/results")

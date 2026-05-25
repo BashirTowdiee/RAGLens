@@ -33,6 +33,11 @@ class EvalRunSummary(BaseModel):
     total_cases: int
     completed_cases: int
     failed_cases: int
+    passed_cases: int
+    warning_cases: int
+    error_cases: int
+    pass_rate: float
+    failure_types: dict[str, int]
 
 
 class EvalRunResponse(BaseModel):
@@ -117,6 +122,15 @@ class CaseResultRecord:
     error_message: str
     scores: DeterministicScores
     created_at: str
+
+
+@dataclass(frozen=True)
+class EvalRunScoreRollup:
+    passed_cases: int
+    warning_cases: int
+    error_cases: int
+    pass_rate: float
+    failure_types: dict[str, int]
 
 
 class EvalRunRepository:
@@ -240,11 +254,11 @@ def create_eval_run_router(repository: EvalRunRepository) -> APIRouter:
 
     @router.post('', response_model=EvalRunResponse, status_code=status.HTTP_201_CREATED)
     def create_eval_run(request: CreateEvalRunRequest) -> EvalRunResponse:
-        return to_eval_run_response(repository.create(request))
+        return to_eval_run_response(repository.create(request), repository)
 
     @router.get('', response_model=EvalRunListResponse)
     def list_eval_runs() -> EvalRunListResponse:
-        eval_runs = [to_eval_run_response(eval_run) for eval_run in repository.list()]
+        eval_runs = [to_eval_run_response(eval_run, repository) for eval_run in repository.list()]
         return EvalRunListResponse(eval_runs=eval_runs)
 
     @router.get('/{eval_run_id}', response_model=EvalRunResponse)
@@ -254,7 +268,7 @@ def create_eval_run_router(repository: EvalRunRepository) -> APIRouter:
         if eval_run is None:
             raise_eval_run_not_found()
 
-        return to_eval_run_response(eval_run)
+        return to_eval_run_response(eval_run, repository)
 
     @router.post(
         '/{eval_run_id}/results',
@@ -317,6 +331,27 @@ def apply_result_summary(eval_run: EvalRunRecord, result: CaseResultRecord) -> E
     )
 
 
+def calculate_score_rollup(results: list[CaseResultRecord]) -> EvalRunScoreRollup:
+    total_cases = len(results)
+    passed_cases = sum(1 for result in results if result.scores.verdict == 'pass')
+    warning_cases = sum(1 for result in results if result.scores.verdict == 'warning')
+    error_cases = sum(1 for result in results if result.scores.verdict == 'error')
+    failure_types: dict[str, int] = {}
+
+    for result in results:
+        failure_type = result.scores.failure_type
+        if failure_type:
+            failure_types[failure_type] = failure_types.get(failure_type, 0) + 1
+
+    return EvalRunScoreRollup(
+        passed_cases=passed_cases,
+        warning_cases=warning_cases,
+        error_cases=error_cases,
+        pass_rate=passed_cases / total_cases if total_cases else 0,
+        failure_types=failure_types,
+    )
+
+
 def raise_eval_run_not_found() -> None:
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
@@ -327,7 +362,13 @@ def raise_eval_run_not_found() -> None:
     )
 
 
-def to_eval_run_response(eval_run: EvalRunRecord) -> EvalRunResponse:
+def to_eval_run_response(
+    eval_run: EvalRunRecord,
+    repository: EvalRunRepository,
+) -> EvalRunResponse:
+    results = repository.list_results(eval_run.id) or []
+    score_rollup = calculate_score_rollup(results)
+
     return EvalRunResponse(
         id=eval_run.id,
         dataset_id=eval_run.dataset_id,
@@ -338,6 +379,11 @@ def to_eval_run_response(eval_run: EvalRunRecord) -> EvalRunResponse:
             total_cases=eval_run.total_cases,
             completed_cases=eval_run.completed_cases,
             failed_cases=eval_run.failed_cases,
+            passed_cases=score_rollup.passed_cases,
+            warning_cases=score_rollup.warning_cases,
+            error_cases=score_rollup.error_cases,
+            pass_rate=score_rollup.pass_rate,
+            failure_types=score_rollup.failure_types,
         ),
         created_at=eval_run.created_at,
         updated_at=eval_run.updated_at,

@@ -48,7 +48,7 @@ def create_eval_runner_router(
         if completed is None:
             raise_eval_run_not_found()
 
-        return to_eval_run_response(completed)
+        return to_eval_run_response(completed, eval_run_repository)
 
     return router
 
