@@ -42,6 +42,31 @@ The current implementation provides:
 - PostgreSQL + pgvector via Docker Compose
 - CI checks for Node, Python, docs, Docker Compose config, and Docker Compose image builds
 
+## Runtime planning
+
+RAGLens is planned to support both cloud and local model runtimes through provider-neutral interfaces and named model profiles.
+
+The current implementation is not yet at local LLM execution. Local runtime support is planned to enter during the embeddings, retrieval, answer generation, trace, and eval phases rather than as a late rewrite.
+
+Key docs:
+
+- [`docs/local-llm-runtime-plan.md`](docs/local-llm-runtime-plan.md): detailed local LLM, embedding, reranker, and model profile implementation plan
+- [`docs/local-runtime-roadmap-placement.md`](docs/local-runtime-roadmap-placement.md): where local runtime work sits in the roadmap
+- [`docs/provider-neutral-runtime-adr.md`](docs/provider-neutral-runtime-adr.md): ADR for provider-neutral chat, embedding, reranker, judge, and model profile support
+- [`docs/roadmap.md`](docs/roadmap.md): full phased delivery roadmap
+
+Initial planned local profile:
+
+```text
+local-balanced
+  chat provider: ollama
+  chat model: qwen3:8b
+  embedding provider: ollama
+  embedding model: nomic-embed-text
+  reranker provider: none
+  retrieval mode: vector
+```
+
 ## Local setup
 
 Copy the example environment file:
