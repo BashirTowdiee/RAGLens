@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from uuid import uuid4
 
 
@@ -10,6 +10,9 @@ class RagQueryResult:
     answer: str
     latency_ms: int
     cost_usd: float
+    retrieved_sources: list[str] = field(default_factory=list)
+    retrieved_context: list[str] = field(default_factory=list)
+    citations: list[str] = field(default_factory=list)
 
 
 class RagClientError(Exception):
