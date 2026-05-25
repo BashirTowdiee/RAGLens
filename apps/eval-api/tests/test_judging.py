@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from app.judging import (
@@ -11,19 +13,21 @@ from app.judging import (
 
 def test_parse_valid_judge_output() -> None:
     evaluation = parse_judge_output(
-        '{'
-        '"scores": {'
-        '"groundedness": 1,'
-        '"correctness": 0.8,'
-        '"completeness": 0.75,'
-        '"citationSupport": 1,'
-        '"refusalQuality": null'
-        '},'
-        '"unsupportedClaims": ["unsupported claim"],'
-        '"missingImportantPoints": ["missing point"],'
-        '"verdict": "warning",'
-        '"rationale": "Mostly grounded."
-        '"}'
+        json.dumps(
+            {
+                'scores': {
+                    'groundedness': 1,
+                    'correctness': 0.8,
+                    'completeness': 0.75,
+                    'citationSupport': 1,
+                    'refusalQuality': None,
+                },
+                'unsupportedClaims': ['unsupported claim'],
+                'missingImportantPoints': ['missing point'],
+                'verdict': 'warning',
+                'rationale': 'Mostly grounded.',
+            }
+        )
     )
 
     assert evaluation.scores.groundedness == 1
@@ -43,33 +47,35 @@ def test_parse_rejects_malformed_judge_output() -> None:
 
 
 def test_parse_rejects_out_of_range_scores() -> None:
+    payload = {
+        'scores': {
+            'groundedness': 2,
+            'correctness': 1,
+            'completeness': 1,
+            'citationSupport': 1,
+        },
+        'verdict': 'pass',
+        'rationale': 'invalid score',
+    }
+
     with pytest.raises(MalformedJudgeOutputError):
-        parse_judge_output(
-            '{'
-            '"scores": {'
-            '"groundedness": 2,'
-            '"correctness": 1,'
-            '"completeness": 1,'
-            '"citationSupport": 1'
-            '},'
-            '"verdict": "pass",'
-            '"rationale": "invalid score"'
-            '}'
-        )
+        parse_judge_output(json.dumps(payload))
 
 
 def test_json_judge_provider_uses_structured_parser() -> None:
     provider = JsonJudgeProvider(
-        '{'
-        '"scores": {'
-        '"groundedness": 1,'
-        '"correctness": 1,'
-        '"completeness": 1,'
-        '"citationSupport": 1'
-        '},'
-        '"verdict": "pass",'
-        '"rationale": "grounded"'
-        '}'
+        json.dumps(
+            {
+                'scores': {
+                    'groundedness': 1,
+                    'correctness': 1,
+                    'completeness': 1,
+                    'citationSupport': 1,
+                },
+                'verdict': 'pass',
+                'rationale': 'grounded',
+            }
+        )
     )
 
     evaluation = provider.evaluate(
