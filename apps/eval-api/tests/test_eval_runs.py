@@ -155,6 +155,46 @@ def test_create_and_fetch_eval_case_result() -> None:
     assert detail_response.json() == result
 
 
+def test_case_result_includes_deterministic_scores() -> None:
+    eval_run = create_eval_run('Scored result run')
+
+    response = client.post(
+        f"/api/v1/eval-runs/{eval_run['id']}/results",
+        json={
+            'test_case_id': 'case-refund-window',
+            'trace_id': 'trace-refund-window',
+            'answer': 'Customers can request refunds within 30 days.',
+            'status': 'completed',
+            'latency_ms': 342,
+            'cost_usd': 0.0012,
+            'error_message': '',
+            'expected_sources': ['refund-policy.md'],
+            'retrieved_sources': ['refund-policy.md', 'pricing.md'],
+            'citations': ['refund-policy.md'],
+        },
+    )
+
+    assert response.status_code == 201
+    result = response.json()
+    assert result['scores'] == {
+        'retrieval': {
+            'hit_at_5': True,
+            'hit_at_10': True,
+            'recall_at_10': 1,
+            'retrieved_expected_sources': ['refund-policy.md'],
+            'missing_expected_sources': [],
+        },
+        'citations': {
+            'citation_present': True,
+            'citation_count': 1,
+            'citation_validity': 1,
+            'invalid_citations': [],
+        },
+        'verdict': 'pass',
+        'failure_type': '',
+    }
+
+
 def test_list_eval_case_results_contains_created_result() -> None:
     eval_run = create_eval_run('Result list run')
     result = create_case_result(eval_run['id'])
