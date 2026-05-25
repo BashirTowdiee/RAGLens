@@ -15,6 +15,10 @@ class MalformedJudgeOutputError(JudgeProviderError):
     pass
 
 
+class JudgeTransportError(JudgeProviderError):
+    pass
+
+
 @dataclass(frozen=True)
 class JudgeEvaluationInput:
     question: str
@@ -56,6 +60,11 @@ class JudgeProvider(Protocol):
         raise NotImplementedError
 
 
+class OpenAIJudgeTransport(Protocol):
+    def complete(self, payload: dict[str, object]) -> dict[str, object]:
+        raise NotImplementedError
+
+
 class JsonJudgeProvider:
     def __init__(self, raw_output: str) -> None:
         self._raw_output = raw_output
@@ -63,6 +72,34 @@ class JsonJudgeProvider:
     def evaluate(self, input: JudgeEvaluationInput) -> JudgeEvaluation:
         del input
         return parse_judge_output(self._raw_output)
+
+
+class OpenAIJudgeProvider:
+    def __init__(
+        self,
+        transport: OpenAIJudgeTransport,
+        model: str,
+        temperature: float = 0,
+    ) -> None:
+        self._transport = transport
+        self._model = model
+        self._temperature = temperature
+
+    def evaluate(self, input: JudgeEvaluationInput) -> JudgeEvaluation:
+        prompt = build_judge_prompt(input)
+        response = self._transport.complete(
+            {
+                'model': self._model,
+                'temperature': self._temperature,
+                'response_format': {'type': 'json_object'},
+                'messages': [
+                    {'role': 'system', 'content': prompt.system},
+                    {'role': 'user', 'content': prompt.user},
+                ],
+                'metadata': {'prompt_version': prompt.version},
+            }
+        )
+        return parse_judge_output(read_openai_message_content(response))
 
 
 class HeuristicJudgeProvider:
@@ -171,6 +208,25 @@ def parse_judge_output(raw_output: str) -> JudgeEvaluation:
         verdict=read_verdict(payload),
         rationale=read_string(payload, 'rationale'),
     )
+
+
+def read_openai_message_content(response: dict[str, object]) -> str:
+    choices = response.get('choices')
+    if not isinstance(choices, list) or not choices:
+        raise JudgeTransportError('OpenAI judge response did not include choices.')
+
+    first_choice = choices[0]
+    if not isinstance(first_choice, dict):
+        raise JudgeTransportError('OpenAI judge choice was malformed.')
+
+    message = first_choice.get('message')
+    if not isinstance(message, dict):
+        raise JudgeTransportError('OpenAI judge response did not include a message.')
+
+    content = message.get('content')
+    if not isinstance(content, str) or not content.strip():
+        raise JudgeTransportError('OpenAI judge response did not include content.')
+    return content
 
 
 def score_citation_support(citations: list[str], expected_sources: list[str]) -> float:
