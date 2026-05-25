@@ -91,13 +91,27 @@ code {
   white-space: nowrap;
 }
 
-.document-summary-grid {
+.document-summary-grid,
+.metric-grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   margin-top: 32px;
 }
 
+.metric-grid {
+  margin-bottom: 0;
+}
+
+.metric-grid div,
+.summary-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.metric-grid dt,
 .summary-item span {
   color: #64748b;
   display: block;
@@ -105,7 +119,11 @@ code {
   margin-bottom: 8px;
 }
 
+.metric-grid dd,
 .summary-item strong {
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0;
   overflow-wrap: anywhere;
 }
 
