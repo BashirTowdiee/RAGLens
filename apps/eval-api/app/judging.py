@@ -5,6 +5,9 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 
+JUDGE_PROMPT_VERSION = 'judge-prompt-v1'
+
+
 class JudgeProviderError(Exception):
     pass
 
@@ -22,6 +25,13 @@ class JudgeEvaluationInput:
     retrieved_context: list[str] = field(default_factory=list)
     citations: list[str] = field(default_factory=list)
     no_answer_expected: bool = False
+
+
+@dataclass(frozen=True)
+class JudgePrompt:
+    version: str
+    system: str
+    user: str
 
 
 @dataclass(frozen=True)
@@ -82,6 +92,37 @@ class HeuristicJudgeProvider:
             verdict=verdict,
             rationale='Heuristic judge result for deterministic tests.',
         )
+
+
+def build_judge_prompt(input: JudgeEvaluationInput) -> JudgePrompt:
+    expected_sources = clean_items(input.expected_sources)
+    retrieved_context = clean_items(input.retrieved_context)
+    citations = clean_items(input.citations)
+    payload = {
+        'question': input.question.strip(),
+        'expectedAnswer': input.expected_answer.strip(),
+        'generatedAnswer': input.generated_answer.strip(),
+        'expectedSources': expected_sources,
+        'retrievedContext': retrieved_context,
+        'citations': citations,
+        'noAnswerExpected': input.no_answer_expected,
+    }
+
+    system = (
+        'You are RAGLens judge-prompt-v1. Evaluate a RAG answer using only the '
+        'provided expected answer, expected sources, retrieved context, and citations. '
+        'Return strict JSON with scores.groundedness, scores.correctness, '
+        'scores.completeness, scores.citationSupport, scores.refusalQuality, '
+        'unsupportedClaims, missingImportantPoints, verdict, and rationale.'
+    )
+    user = (
+        'Evaluate this case. Scores must be numbers from 0 to 1. Verdict must be '
+        'one of pass, fail, warning, or error. For no-answer cases, score '
+        'refusalQuality and verify the answer refuses due to insufficient evidence.\n\n'
+        f'{json.dumps(payload, sort_keys=True, separators=(",", ":"))}'
+    )
+
+    return JudgePrompt(version=JUDGE_PROMPT_VERSION, system=system, user=user)
 
 
 def evaluate_no_answer(input: JudgeEvaluationInput, generated: str) -> JudgeEvaluation:
