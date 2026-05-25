@@ -1,12 +1,6 @@
 from pathlib import Path
 
-
-MIGRATION = (
-    Path(__file__).resolve().parents[3]
-    / 'infra'
-    / 'migrations'
-    / '013_eval_judge_persistence.sql'
-)
+MIGRATION = Path(__file__).resolve().parents[3] / 'infra' / 'migrations' / '013_eval_judge_persistence.sql'
 
 
 def read_migration() -> str:
