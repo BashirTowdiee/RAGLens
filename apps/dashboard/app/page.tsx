@@ -44,6 +44,16 @@ export default function HomePage() {
             Inspect retrieval
           </Link>
         </article>
+
+        <article className="panel">
+          <h2 style={{ marginTop: 0 }}>Eval run inspector</h2>
+          <p style={{ color: '#475569', lineHeight: 1.6 }}>
+            Review evaluation run status, pass rate, judge enablement, and failure type rollups from eval-api.
+          </p>
+          <Link href="/eval-runs" className="primary-link">
+            View eval runs
+          </Link>
+        </article>
       </section>
 
       <section style={{ display: 'grid', gap: '16px', marginTop: '32px' }}>
