@@ -410,17 +410,15 @@ def apply_result_summary(eval_run: EvalRunRecord, result: CaseResultRecord) -> E
 
 def calculate_score_rollup(results: list[CaseResultRecord]) -> EvalRunScoreRollup:
     total_cases = len(results)
-    passed_cases = sum(1 for result in results if result.scores.verdict == 'pass')
-    warning_cases = sum(1 for result in results if result.scores.verdict == 'warning')
-    error_cases = sum(1 for result in results if result.scores.verdict == 'error')
+    passed_cases = sum(1 for result in results if get_effective_verdict(result) == 'pass')
+    warning_cases = sum(1 for result in results if get_effective_verdict(result) == 'warning')
+    error_cases = sum(1 for result in results if get_effective_verdict(result) == 'error')
     failure_types: dict[str, int] = {}
 
     for result in results:
-        failure_type = result.scores.failure_type
+        failure_type = get_effective_failure_type(result)
         if failure_type:
             failure_types[failure_type] = failure_types.get(failure_type, 0) + 1
-        if result.judge_error:
-            failure_types['judge_error'] = failure_types.get('judge_error', 0) + 1
 
     return EvalRunScoreRollup(
         passed_cases=passed_cases,
@@ -429,6 +427,25 @@ def calculate_score_rollup(results: list[CaseResultRecord]) -> EvalRunScoreRollu
         pass_rate=passed_cases / total_cases if total_cases else 0,
         failure_types=failure_types,
     )
+
+
+def get_effective_verdict(result: CaseResultRecord) -> str:
+    if result.judge_error:
+        return 'error'
+    if result.judge is not None and result.judge.verdict in {'fail', 'warning', 'error'}:
+        return result.judge.verdict
+    return result.scores.verdict
+
+
+def get_effective_failure_type(result: CaseResultRecord) -> str:
+    if result.judge_error:
+        return 'judge_error'
+    if result.judge is not None:
+        if result.judge.unsupported_claims:
+            return 'unsupported_claims'
+        if result.judge.verdict in {'fail', 'warning', 'error'}:
+            return 'judge_verdict'
+    return result.scores.failure_type
 
 
 def raise_eval_run_not_found() -> None:
