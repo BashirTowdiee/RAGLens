@@ -95,7 +95,10 @@ def test_heuristic_judge_passes_grounded_answer() -> None:
         JudgeEvaluationInput(
             question='What is the refund policy?',
             expected_answer='Customers can request refunds within 30 days.',
-            generated_answer='Customers can request refunds within 30 days. [refund-policy.md]',
+            generated_answer=(
+                'Customers can request refunds within 30 days. '
+                '[refund-policy.md]'
+            ),
             expected_sources=['refund-policy.md'],
             citations=['refund-policy.md'],
         )
@@ -113,7 +116,9 @@ def test_heuristic_judge_scores_no_answer_refusal() -> None:
         JudgeEvaluationInput(
             question='What is the office pet policy?',
             expected_answer='',
-            generated_answer='I cannot answer because there is insufficient evidence.',
+            generated_answer=(
+                'I cannot answer because there is insufficient evidence.'
+            ),
             no_answer_expected=True,
         )
     )
