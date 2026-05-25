@@ -147,11 +147,14 @@ def test_create_and_fetch_eval_case_result() -> None:
     assert result['eval_run_id'] == eval_run['id']
     assert result['test_case_id'] == 'case-refund-window'
     assert result['trace_id'] == 'trace-refund-window'
+    assert result['question'] == ''
     assert result['answer'] == 'Customers can request refunds within 30 days.'
+    assert result['expected_answer'] == ''
     assert result['status'] == 'completed'
     assert result['latency_ms'] == 342
     assert result['cost_usd'] == 0.0012
     assert result['error_message'] == ''
+    assert result['judge'] is None
     assert result['created_at']
 
     detail_response = client.get(f"/api/v1/eval-runs/{eval_run['id']}/results/{result['id']}")
@@ -197,6 +200,47 @@ def test_case_result_includes_deterministic_scores() -> None:
         },
         'verdict': 'pass',
         'failure_type': '',
+    }
+    assert result['judge'] is None
+
+
+def test_case_result_includes_judge_evaluation_when_expected_answer_is_supplied() -> None:
+    eval_run = create_eval_run('Judge result run')
+
+    response = client.post(
+        f"/api/v1/eval-runs/{eval_run['id']}/results",
+        json={
+            'test_case_id': 'case-refund-window',
+            'trace_id': 'trace-refund-window',
+            'question': 'What is the refund policy?',
+            'answer': 'Customers can request refunds within 30 days.',
+            'expected_answer': 'Customers can request refunds within 30 days.',
+            'status': 'completed',
+            'latency_ms': 342,
+            'cost_usd': 0.0012,
+            'error_message': '',
+            'expected_sources': ['refund-policy.md'],
+            'retrieved_context': ['Refund policy: refunds are available within 30 days.'],
+            'citations': ['refund-policy.md'],
+        },
+    )
+
+    assert response.status_code == 201
+    result = response.json()
+    assert result['question'] == 'What is the refund policy?'
+    assert result['expected_answer'] == 'Customers can request refunds within 30 days.'
+    assert result['judge'] == {
+        'scores': {
+            'groundedness': 1,
+            'correctness': 1,
+            'completeness': 1,
+            'citation_support': 1,
+            'refusal_quality': None,
+        },
+        'unsupported_claims': [],
+        'missing_important_points': [],
+        'verdict': 'pass',
+        'rationale': 'Heuristic judge result for deterministic tests.',
     }
 
 
