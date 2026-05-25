@@ -7,6 +7,8 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
+from app.scoring import CitationScores, DeterministicScores, RetrievalScores, score_case_result
+
 
 class CreateEvalRunRequest(BaseModel):
     dataset_id: str = Field(min_length=1, max_length=120)
@@ -22,6 +24,9 @@ class CreateCaseResultRequest(BaseModel):
     latency_ms: int = Field(default=0, ge=0)
     cost_usd: float = Field(default=0, ge=0)
     error_message: str = Field(default='', max_length=2000)
+    expected_sources: list[str] = Field(default_factory=list, max_length=50)
+    retrieved_sources: list[str] = Field(default_factory=list, max_length=50)
+    citations: list[str] = Field(default_factory=list, max_length=50)
 
 
 class EvalRunSummary(BaseModel):
@@ -45,6 +50,28 @@ class EvalRunListResponse(BaseModel):
     eval_runs: list[EvalRunResponse]
 
 
+class RetrievalScoreResponse(BaseModel):
+    hit_at_5: bool
+    hit_at_10: bool
+    recall_at_10: float
+    retrieved_expected_sources: list[str]
+    missing_expected_sources: list[str]
+
+
+class CitationScoreResponse(BaseModel):
+    citation_present: bool
+    citation_count: int
+    citation_validity: float
+    invalid_citations: list[str]
+
+
+class DeterministicScoreResponse(BaseModel):
+    retrieval: RetrievalScoreResponse
+    citations: CitationScoreResponse
+    verdict: str
+    failure_type: str
+
+
 class CaseResultResponse(BaseModel):
     id: str
     eval_run_id: str
@@ -55,6 +82,7 @@ class CaseResultResponse(BaseModel):
     latency_ms: int
     cost_usd: float
     error_message: str
+    scores: DeterministicScoreResponse
     created_at: str
 
 
@@ -87,6 +115,7 @@ class CaseResultRecord:
     latency_ms: int
     cost_usd: float
     error_message: str
+    scores: DeterministicScores
     created_at: str
 
 
@@ -159,6 +188,12 @@ class InMemoryEvalRunRepository(EvalRunRepository):
         if eval_run is None:
             return None
 
+        scores = score_case_result(
+            expected_sources=request.expected_sources,
+            retrieved_sources=request.retrieved_sources,
+            citations=request.citations,
+            status=request.status,
+        )
         result = CaseResultRecord(
             id=str(uuid4()),
             eval_run_id=eval_run_id,
@@ -169,6 +204,7 @@ class InMemoryEvalRunRepository(EvalRunRepository):
             latency_ms=request.latency_ms,
             cost_usd=request.cost_usd,
             error_message=request.error_message.strip(),
+            scores=scores,
             created_at=datetime.now(UTC).isoformat(),
         )
         self._case_results[result.id] = result
@@ -319,5 +355,34 @@ def to_case_result_response(result: CaseResultRecord) -> CaseResultResponse:
         latency_ms=result.latency_ms,
         cost_usd=result.cost_usd,
         error_message=result.error_message,
+        scores=to_deterministic_score_response(result.scores),
         created_at=result.created_at,
+    )
+
+
+def to_deterministic_score_response(scores: DeterministicScores) -> DeterministicScoreResponse:
+    return DeterministicScoreResponse(
+        retrieval=to_retrieval_score_response(scores.retrieval),
+        citations=to_citation_score_response(scores.citations),
+        verdict=scores.verdict,
+        failure_type=scores.failure_type,
+    )
+
+
+def to_retrieval_score_response(scores: RetrievalScores) -> RetrievalScoreResponse:
+    return RetrievalScoreResponse(
+        hit_at_5=scores.hit_at_5,
+        hit_at_10=scores.hit_at_10,
+        recall_at_10=scores.recall_at_10,
+        retrieved_expected_sources=scores.retrieved_expected_sources,
+        missing_expected_sources=scores.missing_expected_sources,
+    )
+
+
+def to_citation_score_response(scores: CitationScores) -> CitationScoreResponse:
+    return CitationScoreResponse(
+        citation_present=scores.citation_present,
+        citation_count=scores.citation_count,
+        citation_validity=scores.citation_validity,
+        invalid_citations=scores.invalid_citations,
     )
