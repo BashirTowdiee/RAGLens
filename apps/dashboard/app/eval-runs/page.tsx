@@ -88,6 +88,10 @@ export default async function EvalRunsPage() {
                     .join(', ')}
                 </p>
               ) : null}
+
+              <Link href={`/eval-runs/${run.id}`} className="primary-link">
+                Open run detail
+              </Link>
             </article>
           ))}
         </section>
