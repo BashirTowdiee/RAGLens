@@ -6,10 +6,42 @@ from app.judging import (
     HeuristicJudgeProvider,
     JsonJudgeProvider,
     JudgeEvaluationInput,
+    JudgeTransportError,
     MalformedJudgeOutputError,
+    OpenAIJudgeProvider,
     build_judge_prompt,
     parse_judge_output,
 )
+
+
+class CapturingOpenAITransport:
+    def __init__(self, content: str | None = None) -> None:
+        self.payload: dict[str, object] | None = None
+        self.content = content or json.dumps(
+            {
+                'scores': {
+                    'groundedness': 1,
+                    'correctness': 1,
+                    'completeness': 1,
+                    'citationSupport': 1,
+                    'refusalQuality': None,
+                },
+                'unsupportedClaims': [],
+                'missingImportantPoints': [],
+                'verdict': 'pass',
+                'rationale': 'Grounded answer.',
+            }
+        )
+
+    def complete(self, payload: dict[str, object]) -> dict[str, object]:
+        self.payload = payload
+        return {'choices': [{'message': {'content': self.content}}]}
+
+
+class MalformedOpenAITransport:
+    def complete(self, payload: dict[str, object]) -> dict[str, object]:
+        del payload
+        return {'choices': [{'message': {}}]}
 
 
 def test_parse_valid_judge_output() -> None:
@@ -89,6 +121,71 @@ def test_json_judge_provider_uses_structured_parser() -> None:
 
     assert evaluation.verdict == 'pass'
     assert evaluation.rationale == 'grounded'
+
+
+def test_openai_judge_provider_sends_prompt_payload_and_parses_response() -> None:
+    transport = CapturingOpenAITransport()
+    provider = OpenAIJudgeProvider(transport=transport, model='gpt-test')
+
+    evaluation = provider.evaluate(
+        JudgeEvaluationInput(
+            question='What is the refund policy?',
+            expected_answer='Customers can request refunds within 30 days.',
+            generated_answer='Customers can request refunds within 30 days.',
+            expected_sources=['refund-policy.md'],
+            retrieved_context=['Refund policy: refunds are available within 30 days.'],
+            citations=['refund-policy.md'],
+        )
+    )
+
+    assert evaluation.verdict == 'pass'
+    assert evaluation.rationale == 'Grounded answer.'
+    assert transport.payload is not None
+    assert transport.payload['model'] == 'gpt-test'
+    assert transport.payload['temperature'] == 0
+    assert transport.payload['response_format'] == {'type': 'json_object'}
+    assert transport.payload['metadata'] == {'prompt_version': 'judge-prompt-v1'}
+    assert transport.payload['messages'] == [
+        {
+            'role': 'system',
+            'content': build_judge_prompt(
+                JudgeEvaluationInput(
+                    question='What is the refund policy?',
+                    expected_answer='Customers can request refunds within 30 days.',
+                    generated_answer='Customers can request refunds within 30 days.',
+                    expected_sources=['refund-policy.md'],
+                    retrieved_context=['Refund policy: refunds are available within 30 days.'],
+                    citations=['refund-policy.md'],
+                )
+            ).system,
+        },
+        {
+            'role': 'user',
+            'content': build_judge_prompt(
+                JudgeEvaluationInput(
+                    question='What is the refund policy?',
+                    expected_answer='Customers can request refunds within 30 days.',
+                    generated_answer='Customers can request refunds within 30 days.',
+                    expected_sources=['refund-policy.md'],
+                    retrieved_context=['Refund policy: refunds are available within 30 days.'],
+                    citations=['refund-policy.md'],
+                )
+            ).user,
+        },
+    ]
+
+
+def test_openai_judge_provider_raises_for_missing_message_content() -> None:
+    provider = OpenAIJudgeProvider(transport=MalformedOpenAITransport(), model='gpt-test')
+
+    with pytest.raises(JudgeTransportError):
+        provider.evaluate(
+            JudgeEvaluationInput(
+                question='What is the refund policy?',
+                expected_answer='Customers can request refunds within 30 days.',
+                generated_answer='Customers can request refunds within 30 days.',
+            )
+        )
 
 
 def test_build_judge_prompt_includes_expected_inputs() -> None:
