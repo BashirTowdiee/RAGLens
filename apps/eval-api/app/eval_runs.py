@@ -7,6 +7,13 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
+from app.judging import (
+    HeuristicJudgeProvider,
+    JudgeEvaluation,
+    JudgeEvaluationInput,
+    JudgeProvider,
+    JudgeScores,
+)
 from app.scoring import CitationScores, DeterministicScores, RetrievalScores, score_case_result
 
 
@@ -19,14 +26,18 @@ class CreateEvalRunRequest(BaseModel):
 class CreateCaseResultRequest(BaseModel):
     test_case_id: str = Field(min_length=1, max_length=120)
     trace_id: str = Field(default='', max_length=120)
+    question: str = Field(default='', max_length=2000)
     answer: str = Field(default='', max_length=8000)
+    expected_answer: str = Field(default='', max_length=8000)
     status: str = Field(default='completed', min_length=1, max_length=40)
     latency_ms: int = Field(default=0, ge=0)
     cost_usd: float = Field(default=0, ge=0)
     error_message: str = Field(default='', max_length=2000)
     expected_sources: list[str] = Field(default_factory=list, max_length=50)
     retrieved_sources: list[str] = Field(default_factory=list, max_length=50)
+    retrieved_context: list[str] = Field(default_factory=list, max_length=50)
     citations: list[str] = Field(default_factory=list, max_length=50)
+    no_answer_expected: bool = False
 
 
 class EvalRunSummary(BaseModel):
@@ -77,17 +88,36 @@ class DeterministicScoreResponse(BaseModel):
     failure_type: str
 
 
+class JudgeScoreResponse(BaseModel):
+    groundedness: float
+    correctness: float
+    completeness: float
+    citation_support: float
+    refusal_quality: float | None
+
+
+class JudgeEvaluationResponse(BaseModel):
+    scores: JudgeScoreResponse
+    unsupported_claims: list[str]
+    missing_important_points: list[str]
+    verdict: str
+    rationale: str
+
+
 class CaseResultResponse(BaseModel):
     id: str
     eval_run_id: str
     test_case_id: str
     trace_id: str
+    question: str
     answer: str
+    expected_answer: str
     status: str
     latency_ms: int
     cost_usd: float
     error_message: str
     scores: DeterministicScoreResponse
+    judge: JudgeEvaluationResponse | None
     created_at: str
 
 
@@ -115,12 +145,15 @@ class CaseResultRecord:
     eval_run_id: str
     test_case_id: str
     trace_id: str
+    question: str
     answer: str
+    expected_answer: str
     status: str
     latency_ms: int
     cost_usd: float
     error_message: str
     scores: DeterministicScores
+    judge: JudgeEvaluation | None
     created_at: str
 
 
@@ -162,9 +195,10 @@ class EvalRunRepository:
 
 
 class InMemoryEvalRunRepository(EvalRunRepository):
-    def __init__(self) -> None:
+    def __init__(self, judge_provider: JudgeProvider | None = None) -> None:
         self._eval_runs: dict[str, EvalRunRecord] = {}
         self._case_results: dict[str, CaseResultRecord] = {}
+        self._judge_provider = judge_provider or HeuristicJudgeProvider()
 
     def create(self, request: CreateEvalRunRequest) -> EvalRunRecord:
         now = datetime.now(UTC).isoformat()
@@ -208,17 +242,21 @@ class InMemoryEvalRunRepository(EvalRunRepository):
             citations=request.citations,
             status=request.status,
         )
+        judge = score_judge_result(request, self._judge_provider)
         result = CaseResultRecord(
             id=str(uuid4()),
             eval_run_id=eval_run_id,
             test_case_id=request.test_case_id.strip(),
             trace_id=request.trace_id.strip(),
+            question=request.question.strip(),
             answer=request.answer.strip(),
+            expected_answer=request.expected_answer.strip(),
             status=request.status.strip(),
             latency_ms=request.latency_ms,
             cost_usd=request.cost_usd,
             error_message=request.error_message.strip(),
             scores=scores,
+            judge=judge,
             created_at=datetime.now(UTC).isoformat(),
         )
         self._case_results[result.id] = result
@@ -315,6 +353,27 @@ def create_eval_run_router(repository: EvalRunRepository) -> APIRouter:
     return router
 
 
+def score_judge_result(
+    request: CreateCaseResultRequest,
+    judge_provider: JudgeProvider,
+) -> JudgeEvaluation | None:
+    expected_answer = request.expected_answer.strip()
+    if not expected_answer and not request.no_answer_expected:
+        return None
+
+    return judge_provider.evaluate(
+        JudgeEvaluationInput(
+            question=request.question.strip(),
+            expected_answer=expected_answer,
+            generated_answer=request.answer.strip(),
+            expected_sources=request.expected_sources,
+            retrieved_context=request.retrieved_context,
+            citations=request.citations,
+            no_answer_expected=request.no_answer_expected,
+        )
+    )
+
+
 def apply_result_summary(eval_run: EvalRunRecord, result: CaseResultRecord) -> EvalRunRecord:
     failed_cases = eval_run.failed_cases + (1 if result.status == 'failed' else 0)
     completed_cases = eval_run.completed_cases + (1 if result.status == 'completed' else 0)
@@ -396,12 +455,15 @@ def to_case_result_response(result: CaseResultRecord) -> CaseResultResponse:
         eval_run_id=result.eval_run_id,
         test_case_id=result.test_case_id,
         trace_id=result.trace_id,
+        question=result.question,
         answer=result.answer,
+        expected_answer=result.expected_answer,
         status=result.status,
         latency_ms=result.latency_ms,
         cost_usd=result.cost_usd,
         error_message=result.error_message,
         scores=to_deterministic_score_response(result.scores),
+        judge=to_judge_evaluation_response(result.judge),
         created_at=result.created_at,
     )
 
@@ -412,6 +474,31 @@ def to_deterministic_score_response(scores: DeterministicScores) -> Deterministi
         citations=to_citation_score_response(scores.citations),
         verdict=scores.verdict,
         failure_type=scores.failure_type,
+    )
+
+
+def to_judge_evaluation_response(
+    evaluation: JudgeEvaluation | None,
+) -> JudgeEvaluationResponse | None:
+    if evaluation is None:
+        return None
+
+    return JudgeEvaluationResponse(
+        scores=to_judge_score_response(evaluation.scores),
+        unsupported_claims=evaluation.unsupported_claims,
+        missing_important_points=evaluation.missing_important_points,
+        verdict=evaluation.verdict,
+        rationale=evaluation.rationale,
+    )
+
+
+def to_judge_score_response(scores: JudgeScores) -> JudgeScoreResponse:
+    return JudgeScoreResponse(
+        groundedness=scores.groundedness,
+        correctness=scores.correctness,
+        completeness=scores.completeness,
+        citation_support=scores.citation_support,
+        refusal_quality=scores.refusal_quality,
     )
 
 
