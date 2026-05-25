@@ -65,16 +65,25 @@ def run_test_case(
         request = CreateCaseResultRequest(
             test_case_id=test_case.id,
             trace_id=query_result.trace_id,
+            question=test_case.question,
             answer=query_result.answer,
+            expected_answer=test_case.expected_answer,
             status='completed',
             latency_ms=query_result.latency_ms,
             cost_usd=query_result.cost_usd,
+            expected_sources=test_case.reference_citations,
+            retrieved_sources=query_result.retrieved_sources,
+            retrieved_context=query_result.retrieved_context,
+            citations=query_result.citations,
         )
     except Exception as exc:
         request = CreateCaseResultRequest(
             test_case_id=test_case.id,
+            question=test_case.question,
+            expected_answer=test_case.expected_answer,
             status='failed',
             error_message=str(exc),
+            expected_sources=test_case.reference_citations,
         )
 
     eval_run_repository.create_result(eval_run_id, request)
