@@ -401,9 +401,9 @@ def test_execute_eval_run_calls_stub_rag_client_and_stores_result() -> None:
         'passed_cases': 0,
         'warning_cases': 0,
         'error_cases': 0,
-        'pass_rate': 0,
+        'pass_rate': 0.0,
         'failure_types': {
-            'missing_citation': 1,
+            'retrieval_miss': 1,
         },
     }
 

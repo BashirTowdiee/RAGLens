@@ -60,21 +60,34 @@ def run_test_case(
     rag_config_id: str,
     test_case: TestCaseRecord,
 ) -> None:
+    question = test_case.question
+    expected_answer = getattr(test_case, 'expected_answer', '')
+    reference_citations = getattr(test_case, 'reference_citations', [])
+
     try:
-        query_result = rag_client.query(test_case.question, rag_config_id)
+        query_result = rag_client.query(question, rag_config_id)
         request = CreateCaseResultRequest(
             test_case_id=test_case.id,
             trace_id=query_result.trace_id,
+            question=question,
             answer=query_result.answer,
+            expected_answer=expected_answer,
             status='completed',
             latency_ms=query_result.latency_ms,
             cost_usd=query_result.cost_usd,
+            expected_sources=reference_citations,
+            retrieved_sources=query_result.retrieved_sources,
+            retrieved_context=query_result.retrieved_context,
+            citations=query_result.citations,
         )
     except Exception as exc:
         request = CreateCaseResultRequest(
             test_case_id=test_case.id,
+            question=question,
+            expected_answer=expected_answer,
             status='failed',
             error_message=str(exc),
+            expected_sources=reference_citations,
         )
 
     eval_run_repository.create_result(eval_run_id, request)
