@@ -103,7 +103,8 @@ def write_text_file(path: Path, content: str) -> None:
 
 def write_report_artifacts(config: CiSmokeRunnerConfig, response_body: dict[str, Any]) -> None:
     if config.json_output is not None:
-        write_text_file(config.json_output, json.dumps(response_body, indent=2, sort_keys=True) + '\n')
+        json_content = json.dumps(response_body, indent=2, sort_keys=True)
+        write_text_file(config.json_output, f'{json_content}\n')
 
     if config.markdown_output is not None:
         summary = response_body.get('summary_markdown')
