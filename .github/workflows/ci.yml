@@ -93,7 +93,19 @@ jobs:
 
       - name: Run deterministic CI smoke gate
         working-directory: apps/eval-api
-        run: python -m app.ci_smoke_runner --base-url http://127.0.0.1:8001
+        run: >-
+          python -m app.ci_smoke_runner
+          --base-url http://127.0.0.1:8001
+          --json-output ../../artifacts/ci-gate/ci-gate-report.json
+          --markdown-output ../../artifacts/ci-gate/ci-gate-summary.md
+
+      - name: Upload CI gate report artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-gate-report
+          path: artifacts/ci-gate
+          if-no-files-found: ignore
 
       - name: Stop eval-api
         if: always()
