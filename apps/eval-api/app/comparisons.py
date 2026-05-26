@@ -190,7 +190,9 @@ def calculate_metrics(results: list[CaseResultRecord], pass_rate: float) -> dict
         'passRate': pass_rate,
         'hitAt5Rate': rate(result.scores.retrieval.hit_at_5 for result in results),
         'recallAt10': average(result.scores.retrieval.recall_at_10 for result in results),
-        'citationValidity': average(result.scores.citations.citation_validity for result in results),
+        'citationValidity': average(
+            result.scores.citations.citation_validity for result in results
+        ),
         'groundedness': average(
             result.judge.scores.groundedness for result in results if result.judge is not None
         ),
