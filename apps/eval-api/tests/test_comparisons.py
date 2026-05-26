@@ -105,9 +105,24 @@ def test_create_and_fetch_comparison_with_metric_deltas_and_case_groups() -> Non
     assert comparison['candidate_run']['id'] == candidate['id']
 
     deltas = {delta['metric']: delta for delta in comparison['metric_deltas']}
-    assert deltas['passRate'] == {'metric': 'passRate', 'baseline': 0.5, 'candidate': 0.5, 'delta': 0}
-    assert deltas['hitAt5Rate'] == {'metric': 'hitAt5Rate', 'baseline': 0.5, 'candidate': 0.5, 'delta': 0}
-    assert deltas['recallAt10'] == {'metric': 'recallAt10', 'baseline': 0.5, 'candidate': 0.5, 'delta': 0}
+    assert deltas['passRate'] == {
+        'metric': 'passRate',
+        'baseline': 0.5,
+        'candidate': 0.5,
+        'delta': 0,
+    }
+    assert deltas['hitAt5Rate'] == {
+        'metric': 'hitAt5Rate',
+        'baseline': 0.5,
+        'candidate': 0.5,
+        'delta': 0,
+    }
+    assert deltas['recallAt10'] == {
+        'metric': 'recallAt10',
+        'baseline': 0.5,
+        'candidate': 0.5,
+        'delta': 0,
+    }
     assert deltas['citationValidity'] == {
         'metric': 'citationValidity',
         'baseline': 0.5,
