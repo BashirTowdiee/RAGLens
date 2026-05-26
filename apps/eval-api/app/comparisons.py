@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from statistics import mean
@@ -138,19 +139,21 @@ def to_comparison_response(
 
     baseline_results = repository.list_results(baseline_run.id) or []
     candidate_results = repository.list_results(candidate_run.id) or []
+    baseline_response = to_eval_run_response(baseline_run, repository)
+    candidate_response = to_eval_run_response(candidate_run, repository)
     case_groups = classify_cases(baseline_results, candidate_results)
 
     return ComparisonResponse(
         id=comparison.id,
-        baseline_run=to_eval_run_response(baseline_run, repository),
-        candidate_run=to_eval_run_response(candidate_run, repository),
+        baseline_run=baseline_response,
+        candidate_run=candidate_response,
         dataset_id=baseline_run.dataset_id,
         status='completed',
         metric_deltas=calculate_metric_deltas(
             baseline_results=baseline_results,
             candidate_results=candidate_results,
-            baseline_pass_rate=to_eval_run_response(baseline_run, repository).summary.pass_rate,
-            candidate_pass_rate=to_eval_run_response(candidate_run, repository).summary.pass_rate,
+            baseline_pass_rate=baseline_response.summary.pass_rate,
+            candidate_pass_rate=candidate_response.summary.pass_rate,
         ),
         improved_cases=case_groups['improved'],
         regressed_cases=case_groups['regressed'],
@@ -174,9 +177,9 @@ def calculate_metric_deltas(
     return [
         MetricDeltaResponse(
             metric=metric,
-            baseline=baseline_metrics[metric],
-            candidate=candidate_metrics[metric],
-            delta=candidate_metrics[metric] - baseline_metrics[metric],
+            baseline=round_metric(baseline_metrics[metric]),
+            candidate=round_metric(candidate_metrics[metric]),
+            delta=round_metric(candidate_metrics[metric] - baseline_metrics[metric]),
         )
         for metric in baseline_metrics
     ]
@@ -257,15 +260,19 @@ def classify_case(
     return 'unchanged'
 
 
-def rate(values) -> float:
+def rate(values: Iterable[bool]) -> float:
     values_list = list(values)
     if not values_list:
         return 0
     return sum(1 for value in values_list if value) / len(values_list)
 
 
-def average(values) -> float:
+def average(values: Iterable[float]) -> float:
     values_list = list(values)
     if not values_list:
         return 0
     return mean(values_list)
+
+
+def round_metric(value: float) -> float:
+    return round(value, 6)
