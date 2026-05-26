@@ -20,16 +20,20 @@ async function createComparisonAction(formData: FormData) {
   redirect(`/comparisons/${result.comparison.id}`);
 }
 
+type EvalRunsSearchParams = {
+  comparisonError?: string;
+};
+
 type EvalRunsPageProps = {
-  searchParams?: Promise<{ comparisonError?: string }>;
+  searchParams?: Promise<EvalRunsSearchParams>;
 };
 
 export default async function EvalRunsPage({ searchParams }: EvalRunsPageProps) {
-  const [result, resolvedSearchParams] = await Promise.all([
+  const [result, resolvedSearchParams] = await Promise.all<EvalRunsSearchParams | Awaited<typeof fetchEvalRuns>>([
     fetchEvalRuns(),
-    searchParams ?? Promise.resolve({})
+    searchParams ?? Promise.resolve({} satisfies EvalRunsSearchParams)
   ]);
-  const comparisonError = resolvedSearchParams.comparisonError;
+  const comparisonError = (resolvedSearchParams as EvalRunsSearchParams).comparisonError;
 
   return (
     <main style={{ padding: '48px', maxWidth: '1120px', margin: '0 auto' }}>
