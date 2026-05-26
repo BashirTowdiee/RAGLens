@@ -65,6 +65,50 @@ def test_parse_args_accepts_report_outputs(tmp_path) -> None:
     assert config.github_step_summary == github_step_summary
 
 
+def test_build_ci_dataset_version_generates_unique_v1_versions() -> None:
+    versions = {ci_smoke_runner.build_ci_dataset_version() for _ in range(3)}
+
+    assert len(versions) == 3
+    assert all(version.startswith('ci-smoke-v1-') for version in versions)
+
+
+def test_run_smoke_eval_uses_unique_dataset_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    bodies: list[dict] = []
+
+    def request_json(
+        _: CiSmokeRunnerConfig,
+        method: str,
+        path: str,
+        body: dict | None = None,
+    ) -> dict:
+        if body is not None:
+            bodies.append(body)
+        if method == 'POST' and path == '/api/v1/datasets':
+            return {'id': 'dataset-1'}
+        if method == 'POST' and path == '/api/v1/eval-runs':
+            return {'id': 'run-1'}
+        if method == 'POST' and path == '/api/v1/ci/evaluate':
+            return {'passed': True, 'summary_markdown': '# Passed'}
+        return {}
+
+    monkeypatch.setattr(ci_smoke_runner, 'request_json', request_json)
+    monkeypatch.setattr(ci_smoke_runner, 'build_ci_dataset_version', lambda: 'ci-smoke-v1-test-run')
+
+    response = ci_smoke_runner.run_smoke_eval(
+        CiSmokeRunnerConfig(
+            base_url='http://localhost:8001',
+            preset='deterministic-smoke',
+            timeout_seconds=30,
+            json_output=None,
+            markdown_output=None,
+            github_step_summary=None,
+        )
+    )
+
+    assert response == {'passed': True, 'summary_markdown': '# Passed'}
+    assert bodies[0]['version'] == 'ci-smoke-v1-test-run'
+
+
 def test_write_report_artifacts_writes_json_markdown_and_step_summary(tmp_path) -> None:
     json_output = tmp_path / 'reports' / 'ci-gate.json'
     markdown_output = tmp_path / 'reports' / 'ci-gate.md'
