@@ -18,6 +18,7 @@ def test_parse_args_uses_defaults() -> None:
         timeout_seconds=30,
         json_output=None,
         markdown_output=None,
+        github_step_summary=None,
     )
 
 
@@ -39,12 +40,14 @@ def test_parse_args_trims_base_url() -> None:
         timeout_seconds=5,
         json_output=None,
         markdown_output=None,
+        github_step_summary=None,
     )
 
 
 def test_parse_args_accepts_report_outputs(tmp_path) -> None:
     json_output = tmp_path / 'ci-gate.json'
     markdown_output = tmp_path / 'ci-gate.md'
+    github_step_summary = tmp_path / 'github-step-summary.md'
 
     config = ci_smoke_runner.parse_args(
         [
@@ -52,16 +55,20 @@ def test_parse_args_accepts_report_outputs(tmp_path) -> None:
             str(json_output),
             '--markdown-output',
             str(markdown_output),
+            '--github-step-summary',
+            str(github_step_summary),
         ]
     )
 
     assert config.json_output == json_output
     assert config.markdown_output == markdown_output
+    assert config.github_step_summary == github_step_summary
 
 
-def test_write_report_artifacts_writes_json_and_markdown(tmp_path) -> None:
+def test_write_report_artifacts_writes_json_markdown_and_step_summary(tmp_path) -> None:
     json_output = tmp_path / 'reports' / 'ci-gate.json'
     markdown_output = tmp_path / 'reports' / 'ci-gate.md'
+    github_step_summary = tmp_path / 'summaries' / 'step-summary.md'
     response_body = {
         'passed': True,
         'status': 'passed',
@@ -75,12 +82,39 @@ def test_write_report_artifacts_writes_json_and_markdown(tmp_path) -> None:
             timeout_seconds=30,
             json_output=json_output,
             markdown_output=markdown_output,
+            github_step_summary=github_step_summary,
         ),
         response_body,
     )
 
     assert json.loads(json_output.read_text(encoding='utf-8')) == response_body
     assert markdown_output.read_text(encoding='utf-8') == '# RAGLens CI quality gate: PASSED\n'
+    assert github_step_summary.read_text(encoding='utf-8') == '# RAGLens CI quality gate: PASSED\n'
+
+
+def test_write_report_artifacts_appends_to_existing_step_summary(tmp_path) -> None:
+    github_step_summary = tmp_path / 'step-summary.md'
+    github_step_summary.write_text('# Existing summary\n\n', encoding='utf-8')
+
+    ci_smoke_runner.write_report_artifacts(
+        CiSmokeRunnerConfig(
+            base_url='http://localhost:8001',
+            preset='deterministic-smoke',
+            timeout_seconds=30,
+            json_output=None,
+            markdown_output=None,
+            github_step_summary=github_step_summary,
+        ),
+        {
+            'passed': False,
+            'status': 'failed',
+            'summary_markdown': '# RAGLens CI quality gate: FAILED',
+        },
+    )
+
+    assert github_step_summary.read_text(encoding='utf-8') == (
+        '# Existing summary\n\n# RAGLens CI quality gate: FAILED\n'
+    )
 
 
 def test_main_returns_success_for_passing_gate(
