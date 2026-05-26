@@ -60,7 +60,7 @@ def request_json(
 
 
 def build_ci_dataset_version() -> str:
-    return f'ci-smoke-v1-{uuid4().hex}'
+    return f'ci-smoke-v1-{uuid4().hex[:16]}'
 
 
 def run_smoke_eval(config: CiSmokeRunnerConfig) -> dict[str, Any]:
