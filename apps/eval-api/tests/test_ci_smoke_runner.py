@@ -70,6 +70,7 @@ def test_build_ci_dataset_version_generates_unique_v1_versions() -> None:
 
     assert len(versions) == 3
     assert all(version.startswith('ci-smoke-v1-') for version in versions)
+    assert all(len(version) <= 40 for version in versions)
 
 
 def test_run_smoke_eval_uses_unique_dataset_version(monkeypatch: pytest.MonkeyPatch) -> None:
