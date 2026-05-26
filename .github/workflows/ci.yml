@@ -74,6 +74,34 @@ jobs:
         working-directory: apps/eval-api
         run: pytest
 
+      - name: Start eval-api
+        working-directory: apps/eval-api
+        run: |
+          uvicorn app.main:app --host 127.0.0.1 --port 8001 > /tmp/raglens-eval-api.log 2>&1 &
+          echo $! > /tmp/raglens-eval-api.pid
+
+      - name: Wait for eval-api
+        run: |
+          for attempt in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:8001/api/v1/health > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/raglens-eval-api.log
+          exit 1
+
+      - name: Run deterministic CI smoke gate
+        working-directory: apps/eval-api
+        run: python -m app.ci_smoke_runner --base-url http://127.0.0.1:8001
+
+      - name: Stop eval-api
+        if: always()
+        run: |
+          if [ -f /tmp/raglens-eval-api.pid ]; then
+            kill "$(cat /tmp/raglens-eval-api.pid)" || true
+          fi
+
   docker:
     name: Docker Compose build
     runs-on: ubuntu-latest
