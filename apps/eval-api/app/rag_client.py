@@ -22,6 +22,16 @@ class RagClientError(Exception):
     pass
 
 
+class RagProviderTimeoutError(RagClientError):
+    def __init__(self, timeout_seconds: float | None = None) -> None:
+        self.timeout_seconds = timeout_seconds
+        if timeout_seconds is None:
+            message = 'RAG provider request timed out.'
+        else:
+            message = f'RAG provider request timed out after {timeout_seconds:g}s.'
+        super().__init__(message)
+
+
 class RagApiClient:
     def query(self, question: str, rag_config_id: str) -> RagQueryResult:
         raise NotImplementedError
