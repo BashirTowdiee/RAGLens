@@ -143,6 +143,12 @@ code {
   overflow-wrap: anywhere;
 }
 
+.metric-grid small {
+  color: #64748b;
+  display: block;
+  margin-top: 8px;
+}
+
 .answer-grid {
   display: grid;
   gap: 16px;
@@ -178,6 +184,70 @@ code {
 }
 
 .source-comparison-grid h2 {
+  margin-top: 0;
+}
+
+.comparison-form-panel {
+  margin-top: 32px;
+}
+
+.comparison-form {
+  align-items: end;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(220px, 1fr)) auto;
+  margin-top: 20px;
+}
+
+.comparison-form label {
+  color: #475569;
+  display: grid;
+  font-weight: 700;
+  gap: 8px;
+}
+
+.comparison-form select {
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  color: #0f172a;
+  font: inherit;
+  padding: 12px 14px;
+}
+
+.comparison-form button {
+  background: #0f172a;
+  border: 0;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 13px 18px;
+}
+
+.comparison-case-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  margin-top: 24px;
+}
+
+.comparison-case-group h2 {
+  margin-top: 0;
+}
+
+.comparison-case-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.comparison-case-card h3 {
+  margin-top: 0;
+}
+
+.comparison-case-card .secondary-link {
   margin-top: 0;
 }
 
@@ -259,6 +329,7 @@ code {
 }
 
 @media (max-width: 720px) {
+  .comparison-form,
   .retrieval-form,
   .trace-summary-card {
     grid-template-columns: 1fr;
