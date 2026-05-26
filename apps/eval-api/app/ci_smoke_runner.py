@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from uuid import uuid4
 
 from app.rag_client import CI_DETERMINISTIC_RAG_CONFIG_ID, CI_DETERMINISTIC_SOURCE
 
@@ -58,6 +59,10 @@ def request_json(
         return json.loads(response.read().decode('utf-8'))
 
 
+def build_ci_dataset_version() -> str:
+    return f'ci-smoke-v1-{uuid4().hex}'
+
+
 def run_smoke_eval(config: CiSmokeRunnerConfig) -> dict[str, Any]:
     dataset = request_json(
         config,
@@ -65,7 +70,7 @@ def run_smoke_eval(config: CiSmokeRunnerConfig) -> dict[str, Any]:
         '/api/v1/datasets',
         {
             'name': 'CI deterministic eval dataset',
-            'version': 'ci-smoke-v1',
+            'version': build_ci_dataset_version(),
             'description': 'Deterministic CI smoke dataset.',
         },
     )
