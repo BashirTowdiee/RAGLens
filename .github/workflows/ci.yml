@@ -98,6 +98,7 @@ jobs:
           --base-url http://127.0.0.1:8001
           --json-output ../../artifacts/ci-gate/ci-gate-report.json
           --markdown-output ../../artifacts/ci-gate/ci-gate-summary.md
+          --github-step-summary "$GITHUB_STEP_SUMMARY"
 
       - name: Upload CI gate report artifacts
         if: always()
