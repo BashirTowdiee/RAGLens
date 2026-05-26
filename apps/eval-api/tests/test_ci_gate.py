@@ -94,6 +94,8 @@ def test_ci_gate_passes_when_metrics_meet_thresholds() -> None:
 
     assert response.status_code == 200
     body = response.json()
+    assert body['result_id']
+    assert body['created_at']
     assert body['eval_run_id'] == eval_run['id']
     assert body['status'] == 'passed'
     assert body['passed'] is True
@@ -110,6 +112,30 @@ def test_ci_gate_passes_when_metrics_meet_thresholds() -> None:
     assert all(result['passed'] for result in body['threshold_results'])
     assert body['summary_markdown'].startswith('# RAGLens CI quality gate: PASSED')
     assert '- preset: custom' in body['summary_markdown']
+
+
+def test_ci_gate_stores_result_for_lookup() -> None:
+    eval_run = create_eval_run('Stored CI gate')
+    create_result(
+        eval_run['id'],
+        test_case_id='case-stored-1',
+        expected_sources=['refund-policy.md'],
+        retrieved_sources=['refund-policy.md'],
+        citations=['refund-policy.md'],
+        latency_ms=100,
+    )
+
+    evaluate_response = client.post(
+        '/api/v1/ci/evaluate',
+        json={'eval_run_id': eval_run['id'], 'preset': 'deterministic-smoke'},
+    )
+    assert evaluate_response.status_code == 200
+    created_result = evaluate_response.json()
+
+    lookup_response = client.get(f"/api/v1/ci/gate-results/{created_result['result_id']}")
+
+    assert lookup_response.status_code == 200
+    assert lookup_response.json() == created_result
 
 
 def test_ci_gate_uses_named_threshold_preset() -> None:
@@ -193,4 +219,14 @@ def test_ci_gate_returns_not_found_for_missing_eval_run() -> None:
     assert response.json()['detail'] == {
         'error': 'eval_run_not_found',
         'message': 'Eval run was not found.',
+    }
+
+
+def test_ci_gate_result_lookup_returns_not_found_for_missing_result() -> None:
+    response = client.get('/api/v1/ci/gate-results/missing-result')
+
+    assert response.status_code == 404
+    assert response.json()['detail'] == {
+        'error': 'ci_gate_result_not_found',
+        'message': 'CI gate result was not found.',
     }

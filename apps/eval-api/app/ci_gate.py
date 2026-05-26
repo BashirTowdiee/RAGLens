@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from statistics import mean
 from typing import Literal
+from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
@@ -67,6 +70,7 @@ class CiGateMetricsResponse(BaseModel):
 
 
 class CiGateResponse(BaseModel):
+    result_id: str
     eval_run_id: str
     status: str
     passed: bool
@@ -75,10 +79,42 @@ class CiGateResponse(BaseModel):
     metrics: CiGateMetricsResponse
     threshold_results: list[CiGateMetricResponse]
     summary_markdown: str
+    created_at: str
 
 
-def create_ci_gate_router(repository: EvalRunRepository) -> APIRouter:
+@dataclass(frozen=True)
+class CiGateResultRecord:
+    id: str
+    response: CiGateResponse
+
+
+class CiGateResultRepository:
+    def create(self, response: CiGateResponse) -> CiGateResultRecord:
+        raise NotImplementedError
+
+    def get(self, result_id: str) -> CiGateResultRecord | None:
+        raise NotImplementedError
+
+
+class InMemoryCiGateResultRepository(CiGateResultRepository):
+    def __init__(self) -> None:
+        self._results: dict[str, CiGateResultRecord] = {}
+
+    def create(self, response: CiGateResponse) -> CiGateResultRecord:
+        record = CiGateResultRecord(id=response.result_id, response=response)
+        self._results[record.id] = record
+        return record
+
+    def get(self, result_id: str) -> CiGateResultRecord | None:
+        return self._results.get(result_id)
+
+
+def create_ci_gate_router(
+    repository: EvalRunRepository,
+    gate_results: CiGateResultRepository | None = None,
+) -> APIRouter:
     router = APIRouter(prefix='/api/v1/ci', tags=['ci-gate'])
+    result_repository = gate_results or InMemoryCiGateResultRepository()
 
     @router.get('/threshold-presets', response_model=list[ThresholdPresetResponse])
     def list_threshold_presets() -> list[ThresholdPresetResponse]:
@@ -106,8 +142,8 @@ def create_ci_gate_router(repository: EvalRunRepository) -> APIRouter:
         metrics = calculate_ci_gate_metrics(results, eval_run_response.summary.pass_rate)
         threshold_results = evaluate_thresholds(metrics, thresholds)
         passed = all(result.passed for result in threshold_results)
-
-        return CiGateResponse(
+        response = CiGateResponse(
+            result_id=str(uuid4()),
             eval_run_id=eval_run.id,
             status='passed' if passed else 'failed',
             passed=passed,
@@ -121,7 +157,23 @@ def create_ci_gate_router(repository: EvalRunRepository) -> APIRouter:
                 threshold_results=threshold_results,
                 passed=passed,
             ),
+            created_at=datetime.now(UTC).isoformat(),
         )
+        result_repository.create(response)
+        return response
+
+    @router.get('/gate-results/{result_id}', response_model=CiGateResponse)
+    def get_ci_gate_result(result_id: str) -> CiGateResponse:
+        result = result_repository.get(result_id)
+        if result is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    'error': 'ci_gate_result_not_found',
+                    'message': 'CI gate result was not found.',
+                },
+            )
+        return result.response
 
     return router
 
