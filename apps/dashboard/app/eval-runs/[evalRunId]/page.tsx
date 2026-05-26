@@ -196,6 +196,13 @@ export default async function EvalRunDetailPage({ params }: EvalRunDetailPagePro
                       ) : null}
                     </section>
                   ) : null}
+
+                  <Link
+                    href={`/eval-runs/${evalRunId}/results/${result.id}`}
+                    className="secondary-link"
+                  >
+                    Open case detail
+                  </Link>
                 </article>
               ))}
             </section>
