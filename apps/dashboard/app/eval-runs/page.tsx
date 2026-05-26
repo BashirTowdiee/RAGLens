@@ -29,11 +29,9 @@ type EvalRunsPageProps = {
 };
 
 export default async function EvalRunsPage({ searchParams }: EvalRunsPageProps) {
-  const [result, resolvedSearchParams] = await Promise.all<EvalRunsSearchParams | Awaited<typeof fetchEvalRuns>>([
-    fetchEvalRuns(),
-    searchParams ?? Promise.resolve({} satisfies EvalRunsSearchParams)
-  ]);
-  const comparisonError = (resolvedSearchParams as EvalRunsSearchParams).comparisonError;
+  const result = await fetchEvalRuns();
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const comparisonError = resolvedSearchParams.comparisonError;
 
   return (
     <main style={{ padding: '48px', maxWidth: '1120px', margin: '0 auto' }}>
