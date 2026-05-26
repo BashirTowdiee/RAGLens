@@ -134,3 +134,51 @@ Stale claims ignored: none.
 
 Next recommended action:
 - Re-check PR #45 CI and merge if green.
+
+## 2026-05-27T00:00:00+10:00
+
+Selected action: Implement next meaningful Phase 12 vertical slice.
+
+Active stage: Phase 12 - Run comparison.
+
+Acceptance criteria advanced:
+- Dashboard can create a comparison from two eval runs.
+- Dashboard redirects to comparison detail after creation.
+- Comparison detail displays baseline and candidate runs.
+- Comparison detail displays metric deltas and before/after values.
+- Comparison detail groups improved, regressed, unchanged, missing-baseline, and missing-candidate cases.
+- Case groups link to baseline and candidate case detail pages where result IDs exist.
+
+Files touched:
+- apps/dashboard/app/lib/evalApi.ts
+- apps/dashboard/app/eval-runs/page.tsx
+- apps/dashboard/app/comparisons/[comparisonId]/page.tsx
+- apps/dashboard/app/globals.css
+- plans/events/2026-05-27-chatgpt-worker-a-comparison-dashboard-claim.md
+- plans/workers/chatgpt-worker-a.md
+
+PR/branch:
+- Branch: agent/chatgpt-worker-a/comparison-dashboard
+- PR: pending creation
+
+Commit/head SHA:
+- 1c619fcaa8430bbb82bc6ef33a4f369f87bffb1c before this planning update
+
+Tests/checks run:
+- Local checks not run because the execution environment cannot clone GitHub.
+- Existing comparison API from PR #45 was inspected and used as the dashboard contract.
+
+CI status: pending PR creation.
+
+Merge status: not merged.
+
+Blockers: none.
+
+Conflicting claims considered:
+- No open PRs found before source changes.
+- Existing agent/chatgpt-worker-a/comparison-endpoint and failed-case-detail branches are already merged and owned by this worker.
+
+Stale claims ignored: none.
+
+Next recommended action:
+- Open PR and wait for CI.
