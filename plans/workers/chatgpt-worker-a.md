@@ -92,3 +92,45 @@ Stale claims ignored: none.
 
 Next recommended action:
 - Open PR and wait for CI.
+
+## 2026-05-27T00:00:00+10:00
+
+Selected action: Fix CI blocker on PR #45.
+
+Active stage: Phase 12 - Run comparison.
+
+Acceptance criteria advanced:
+- Preserved comparison endpoint functionality while fixing Ruff line-length failures.
+
+Files touched:
+- apps/eval-api/app/comparisons.py
+- apps/eval-api/tests/test_comparisons.py
+- plans/workers/chatgpt-worker-a.md
+
+PR/branch:
+- Branch: agent/chatgpt-worker-a/comparison-endpoint
+- PR: #45
+
+Commit/head SHA:
+- 6851ac90169c6553e6d6e21097ef015362eb789c before this planning update
+
+Tests/checks run:
+- Inspected CI run #191 logs.
+- Node workspaces and Docker Compose checks passed in CI.
+- Eval API CI failed only on Ruff E501 line-length checks before tests ran.
+
+CI status: pending new CI run after formatting fix.
+
+Merge status: not merged.
+
+Blockers:
+- Waiting for new CI result.
+
+Conflicting claims considered:
+- PR #45 is owned by chatgpt-worker-a.
+- No other open PRs found before the fix.
+
+Stale claims ignored: none.
+
+Next recommended action:
+- Re-check PR #45 CI and merge if green.
