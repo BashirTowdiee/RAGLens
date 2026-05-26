@@ -75,6 +75,37 @@ export type EvalCaseResult = {
   created_at: string;
 };
 
+export type MetricDelta = {
+  metric: string;
+  baseline: number;
+  candidate: number;
+  delta: number;
+};
+
+export type ComparisonCase = {
+  test_case_id: string;
+  baseline_result_id: string | null;
+  candidate_result_id: string | null;
+  baseline_verdict: string | null;
+  candidate_verdict: string | null;
+  classification: string;
+};
+
+export type ComparisonRecord = {
+  id: string;
+  baseline_run: EvalRunRecord;
+  candidate_run: EvalRunRecord;
+  dataset_id: string;
+  status: string;
+  metric_deltas: MetricDelta[];
+  improved_cases: ComparisonCase[];
+  regressed_cases: ComparisonCase[];
+  unchanged_cases: ComparisonCase[];
+  missing_baseline_cases: ComparisonCase[];
+  missing_candidate_cases: ComparisonCase[];
+  created_at: string;
+};
+
 export type EvalRunsResult =
   | { ok: true; evalRuns: EvalRunRecord[] }
   | { ok: false; error: string };
@@ -89,6 +120,10 @@ export type EvalCaseResultsResult =
 
 export type EvalCaseResultResult =
   | { ok: true; result: EvalCaseResult }
+  | { ok: false; error: string };
+
+export type ComparisonResult =
+  | { ok: true; comparison: ComparisonRecord }
   | { ok: false; error: string };
 
 export function getEvalApiBaseUrl(): string {
@@ -173,6 +208,53 @@ export async function fetchEvalCaseResult(
     return {
       ok: false,
       error: error instanceof Error ? error.message : 'Unable to fetch eval case result.'
+    };
+  }
+}
+
+export async function createComparison(
+  baselineEvalRunId: string,
+  candidateEvalRunId: string
+): Promise<ComparisonResult> {
+  try {
+    const response = await fetch(`${getEvalApiBaseUrl()}/api/v1/comparisons`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        baseline_eval_run_id: baselineEvalRunId,
+        candidate_eval_run_id: candidateEvalRunId
+      }),
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      return { ok: false, error: `eval-api returned HTTP ${response.status}` };
+    }
+
+    return { ok: true, comparison: (await response.json()) as ComparisonRecord };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Unable to create comparison.'
+    };
+  }
+}
+
+export async function fetchComparison(comparisonId: string): Promise<ComparisonResult> {
+  try {
+    const response = await fetch(`${getEvalApiBaseUrl()}/api/v1/comparisons/${comparisonId}`, {
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      return { ok: false, error: `eval-api returned HTTP ${response.status}` };
+    }
+
+    return { ok: true, comparison: (await response.json()) as ComparisonRecord };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Unable to fetch comparison.'
     };
   }
 }
