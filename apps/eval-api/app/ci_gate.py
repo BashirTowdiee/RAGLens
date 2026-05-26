@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from statistics import mean
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.eval_runs import CaseResultRecord, EvalRunRepository, to_eval_run_response
+
+PresetName = Literal['deterministic-smoke', 'strict-local']
 
 
 class QualityThresholds(BaseModel):
@@ -17,9 +20,33 @@ class QualityThresholds(BaseModel):
     max_average_latency_ms: float = Field(default=0, ge=0)
 
 
+THRESHOLD_PRESETS: dict[PresetName, QualityThresholds] = {
+    'deterministic-smoke': QualityThresholds(
+        min_hit_at_5=0.8,
+        min_citation_validity=0.95,
+        min_groundedness=0,
+        min_correctness=0,
+        max_average_latency_ms=5000,
+    ),
+    'strict-local': QualityThresholds(
+        min_hit_at_5=1,
+        min_citation_validity=1,
+        min_groundedness=0.8,
+        min_correctness=0.8,
+        max_average_latency_ms=1000,
+    ),
+}
+
+
 class CiEvaluateRequest(BaseModel):
     eval_run_id: str = Field(min_length=1, max_length=120)
-    thresholds: QualityThresholds = Field(default_factory=QualityThresholds)
+    preset: PresetName | None = None
+    thresholds: QualityThresholds | None = None
+
+
+class ThresholdPresetResponse(BaseModel):
+    name: str
+    thresholds: QualityThresholds
 
 
 class CiGateMetricResponse(BaseModel):
@@ -43,6 +70,8 @@ class CiGateResponse(BaseModel):
     eval_run_id: str
     status: str
     passed: bool
+    preset: str | None
+    thresholds: QualityThresholds
     metrics: CiGateMetricsResponse
     threshold_results: list[CiGateMetricResponse]
     summary_markdown: str
@@ -50,6 +79,13 @@ class CiGateResponse(BaseModel):
 
 def create_ci_gate_router(repository: EvalRunRepository) -> APIRouter:
     router = APIRouter(prefix='/api/v1/ci', tags=['ci-gate'])
+
+    @router.get('/threshold-presets', response_model=list[ThresholdPresetResponse])
+    def list_threshold_presets() -> list[ThresholdPresetResponse]:
+        return [
+            ThresholdPresetResponse(name=name, thresholds=thresholds)
+            for name, thresholds in sorted(THRESHOLD_PRESETS.items())
+        ]
 
     @router.post('/evaluate', response_model=CiGateResponse)
     def evaluate_ci_gate(request: CiEvaluateRequest) -> CiGateResponse:
@@ -65,21 +101,37 @@ def create_ci_gate_router(repository: EvalRunRepository) -> APIRouter:
                 },
             )
 
+        thresholds = resolve_thresholds(request)
         eval_run_response = to_eval_run_response(eval_run, repository)
         metrics = calculate_ci_gate_metrics(results, eval_run_response.summary.pass_rate)
-        threshold_results = evaluate_thresholds(metrics, request.thresholds)
+        threshold_results = evaluate_thresholds(metrics, thresholds)
         passed = all(result.passed for result in threshold_results)
 
         return CiGateResponse(
             eval_run_id=eval_run.id,
             status='passed' if passed else 'failed',
             passed=passed,
+            preset=request.preset,
+            thresholds=thresholds,
             metrics=metrics,
             threshold_results=threshold_results,
-            summary_markdown=build_summary_markdown(metrics, threshold_results, passed),
+            summary_markdown=build_summary_markdown(
+                metrics=metrics,
+                preset=request.preset,
+                threshold_results=threshold_results,
+                passed=passed,
+            ),
         )
 
     return router
+
+
+def resolve_thresholds(request: CiEvaluateRequest) -> QualityThresholds:
+    if request.thresholds is not None:
+        return request.thresholds
+    if request.preset is not None:
+        return THRESHOLD_PRESETS[request.preset]
+    return THRESHOLD_PRESETS['deterministic-smoke']
 
 
 def calculate_ci_gate_metrics(
@@ -144,11 +196,14 @@ def maximum_threshold(metric: str, actual: float, threshold: float) -> CiGateMet
 
 
 def build_summary_markdown(
+    *,
     metrics: CiGateMetricsResponse,
+    preset: str | None,
     threshold_results: list[CiGateMetricResponse],
     passed: bool,
 ) -> str:
     status_line = 'PASSED' if passed else 'FAILED'
+    preset_line = preset if preset is not None else 'custom'
     threshold_lines = [
         f"- {result.metric}: {result.actual} {result.operator} {result.threshold} "
         f"{'passed' if result.passed else 'failed'}"
@@ -159,6 +214,7 @@ def build_summary_markdown(
         [
             f'# RAGLens CI quality gate: {status_line}',
             '',
+            f'- preset: {preset_line}',
             f'- passRate: {metrics.pass_rate}',
             f'- hitAt5Rate: {metrics.hit_at_5_rate}',
             f'- citationValidity: {metrics.citation_validity}',
