@@ -65,7 +65,8 @@ def create_ci_gate_router(repository: EvalRunRepository) -> APIRouter:
                 },
             )
 
-        metrics = calculate_ci_gate_metrics(results, to_eval_run_response(eval_run, repository).summary.pass_rate)
+        eval_run_response = to_eval_run_response(eval_run, repository)
+        metrics = calculate_ci_gate_metrics(results, eval_run_response.summary.pass_rate)
         threshold_results = evaluate_thresholds(metrics, request.thresholds)
         passed = all(result.passed for result in threshold_results)
 
