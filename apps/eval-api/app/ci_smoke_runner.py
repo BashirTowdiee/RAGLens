@@ -19,6 +19,7 @@ class CiSmokeRunnerConfig:
     timeout_seconds: float
     json_output: Path | None
     markdown_output: Path | None
+    github_step_summary: Path | None
 
 
 def parse_args(argv: list[str]) -> CiSmokeRunnerConfig:
@@ -28,6 +29,7 @@ def parse_args(argv: list[str]) -> CiSmokeRunnerConfig:
     parser.add_argument('--timeout-seconds', type=float, default=30)
     parser.add_argument('--json-output', type=Path)
     parser.add_argument('--markdown-output', type=Path)
+    parser.add_argument('--github-step-summary', type=Path)
     args = parser.parse_args(argv)
     return CiSmokeRunnerConfig(
         base_url=args.base_url.rstrip('/'),
@@ -35,6 +37,7 @@ def parse_args(argv: list[str]) -> CiSmokeRunnerConfig:
         timeout_seconds=args.timeout_seconds,
         json_output=args.json_output,
         markdown_output=args.markdown_output,
+        github_step_summary=args.github_step_summary,
     )
 
 
@@ -101,15 +104,32 @@ def write_text_file(path: Path, content: str) -> None:
     path.write_text(content, encoding='utf-8')
 
 
+def append_text_file(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open('a', encoding='utf-8') as file:
+        file.write(content)
+
+
+def ci_gate_summary(response_body: dict[str, Any]) -> str:
+    summary = response_body.get('summary_markdown')
+    if isinstance(summary, str):
+        return summary
+    status = response_body.get('status')
+    return status if isinstance(status, str) else 'unknown'
+
+
 def write_report_artifacts(config: CiSmokeRunnerConfig, response_body: dict[str, Any]) -> None:
     if config.json_output is not None:
         json_content = json.dumps(response_body, indent=2, sort_keys=True)
         write_text_file(config.json_output, f'{json_content}\n')
 
+    summary = ci_gate_summary(response_body)
+
     if config.markdown_output is not None:
-        summary = response_body.get('summary_markdown')
-        content = summary if isinstance(summary, str) else response_body.get('status', 'unknown')
-        write_text_file(config.markdown_output, f'{content}\n')
+        write_text_file(config.markdown_output, f'{summary}\n')
+
+    if config.github_step_summary is not None:
+        append_text_file(config.github_step_summary, f'{summary}\n')
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -124,8 +144,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f'RAGLens CI smoke runner failed: {error}', file=sys.stderr)
         return 2
 
-    summary = response_body.get('summary_markdown')
-    print(summary if isinstance(summary, str) else response_body.get('status', 'unknown'))
+    print(ci_gate_summary(response_body))
     return 0 if response_body.get('passed') is True else 1
 
 
