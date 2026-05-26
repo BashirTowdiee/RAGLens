@@ -78,14 +78,14 @@ Next recommended action:
 
 ## 2026-05-27T00:00:00+10:00
 
-Selected action: implement next meaningful vertical slice.
+Selected action: merge ready roadmap PR.
 
 Active stage: Phase 14 - Production hardening.
 
 Acceptance criteria advanced:
-- Eval API responses now include an `x-request-id` header.
+- Eval API responses include an `x-request-id` header.
 - Inbound `x-request-id` values are preserved.
-- Error responses also include a request ID for traceability.
+- Error responses include a request ID for traceability.
 
 Files touched:
 - apps/eval-api/app/main.py
@@ -100,17 +100,17 @@ PR/branch:
 - Branch: agent/chatgpt-worker-a/eval-api-request-id
 
 Commit/head SHA:
-- Source head SHA before planning updates: 9399c0589dfb50984392b8feb3328225effdfa62
+- Head SHA: 0f51f8a9614276d333694f4089c0b7b1f2c54254
+- Merge SHA: dff910ae947fd7db2e7d0e8b424701390f07292b
 
 Tests/checks run:
-- Local checks not run because this connector environment cannot clone or execute the repository test suite.
-- CI run #247 is in progress.
+- CI run #250 passed.
 
-CI status: in progress.
+CI status: success.
 
-Merge status: not merged.
+Merge status: merged.
 
-Blockers: waiting for CI.
+Blockers: none.
 
 Next recommended action:
-- Re-check PR #59 CI status and merge if green and mergeable.
+- Re-check planning state and choose the next non-overlapping Phase 14 production hardening slice.
