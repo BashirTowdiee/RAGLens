@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from app.ci_gate import create_ci_gate_router
 from app.comparisons import create_comparison_router
 from app.datasets import InMemoryDatasetRepository, create_dataset_router
 from app.eval_runner import create_eval_runner_router
@@ -17,6 +18,7 @@ app.include_router(create_dataset_router(dataset_repository))
 app.include_router(create_eval_run_router(eval_run_repository))
 app.include_router(create_eval_runner_router(eval_run_repository, dataset_repository, rag_client))
 app.include_router(create_comparison_router(eval_run_repository))
+app.include_router(create_ci_gate_router(eval_run_repository))
 app.include_router(create_scoring_router())
 
 
