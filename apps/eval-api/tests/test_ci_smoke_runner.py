@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from urllib.error import HTTPError, URLError
 
 import pytest
@@ -15,6 +16,8 @@ def test_parse_args_uses_defaults() -> None:
         base_url='http://localhost:8001',
         preset='deterministic-smoke',
         timeout_seconds=30,
+        json_output=None,
+        markdown_output=None,
     )
 
 
@@ -34,7 +37,50 @@ def test_parse_args_trims_base_url() -> None:
         base_url='http://eval-api:8001',
         preset='strict-local',
         timeout_seconds=5,
+        json_output=None,
+        markdown_output=None,
     )
+
+
+def test_parse_args_accepts_report_outputs(tmp_path) -> None:
+    json_output = tmp_path / 'ci-gate.json'
+    markdown_output = tmp_path / 'ci-gate.md'
+
+    config = ci_smoke_runner.parse_args(
+        [
+            '--json-output',
+            str(json_output),
+            '--markdown-output',
+            str(markdown_output),
+        ]
+    )
+
+    assert config.json_output == json_output
+    assert config.markdown_output == markdown_output
+
+
+def test_write_report_artifacts_writes_json_and_markdown(tmp_path) -> None:
+    json_output = tmp_path / 'reports' / 'ci-gate.json'
+    markdown_output = tmp_path / 'reports' / 'ci-gate.md'
+    response_body = {
+        'passed': True,
+        'status': 'passed',
+        'summary_markdown': '# RAGLens CI quality gate: PASSED',
+    }
+
+    ci_smoke_runner.write_report_artifacts(
+        CiSmokeRunnerConfig(
+            base_url='http://localhost:8001',
+            preset='deterministic-smoke',
+            timeout_seconds=30,
+            json_output=json_output,
+            markdown_output=markdown_output,
+        ),
+        response_body,
+    )
+
+    assert json.loads(json_output.read_text(encoding='utf-8')) == response_body
+    assert markdown_output.read_text(encoding='utf-8') == '# RAGLens CI quality gate: PASSED\n'
 
 
 def test_main_returns_success_for_passing_gate(
