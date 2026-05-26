@@ -41,3 +41,47 @@ Stale claims ignored: none.
 
 Next recommended action:
 - Continue next non-overlapping Phase 13 CI quality gate slice.
+
+## 2026-05-27T00:00:00+10:00
+
+Selected action: implement next meaningful Phase 13 vertical slice.
+
+Active stage: Phase 13 - CI quality gate.
+
+Acceptance criteria advanced:
+- CI deterministic eval dataset seeding now uses a unique `ci-smoke-v1-*` version per smoke-run invocation.
+- Repeated CI smoke runs avoid the duplicate dataset version guard while keeping deterministic dataset lineage.
+- Unit coverage verifies unique version generation and use in the smoke runner create-dataset request.
+
+Files touched:
+- apps/eval-api/app/ci_smoke_runner.py
+- apps/eval-api/tests/test_ci_smoke_runner.py
+- plans/events/2026-05-27-chatgpt-worker-a-ci-smoke-unique-dataset-claim.md
+- plans/events/2026-05-27-chatgpt-worker-a-ci-smoke-unique-dataset-complete.md
+- plans/workers/chatgpt-worker-a.md
+
+PR/branch:
+- PR: #58
+- Branch: agent/chatgpt-worker-a/ci-smoke-unique-dataset
+
+Commit/head SHA:
+- Head SHA: fa73a8c7c5fb9496419917cd953a6232b713b03d
+
+Tests/checks run:
+- Local checks not run because this connector environment cannot clone or execute the repository test suite.
+- CI run #236 is in progress.
+
+CI status: in progress.
+
+Merge status: not merged.
+
+Blockers: waiting for CI.
+
+Conflicting claims considered:
+- No open PRs were found before claiming or before PR creation.
+- Recent Phase 13 claims for CI smoke runner, workflow, artifacts, persistence, and step summary were completed or merged.
+
+Stale claims ignored: none.
+
+Next recommended action:
+- Re-check PR #58 CI status and merge if green and mergeable.
