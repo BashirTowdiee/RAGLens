@@ -57,6 +57,22 @@ code {
   text-decoration: none;
 }
 
+.secondary-link {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  color: #0f172a;
+  font-weight: 700;
+  margin-top: 20px;
+  padding: 10px 16px;
+  text-decoration: none;
+}
+
+.secondary-link:hover {
+  border-color: #64748b;
+}
+
 .dashboard-actions {
   display: grid;
   gap: 16px;
@@ -152,6 +168,17 @@ code {
 
 .judge-panel {
   margin-top: 24px;
+}
+
+.source-comparison-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  margin-top: 24px;
+}
+
+.source-comparison-grid h2 {
+  margin-top: 0;
 }
 
 .chunk-header {

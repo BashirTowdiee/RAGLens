@@ -87,6 +87,10 @@ export type EvalCaseResultsResult =
   | { ok: true; results: EvalCaseResult[] }
   | { ok: false; error: string };
 
+export type EvalCaseResultResult =
+  | { ok: true; result: EvalCaseResult }
+  | { ok: false; error: string };
+
 export function getEvalApiBaseUrl(): string {
   return process.env.NEXT_PUBLIC_EVAL_API_BASE_URL ?? 'http://localhost:8001';
 }
@@ -146,6 +150,29 @@ export async function fetchEvalCaseResults(evalRunId: string): Promise<EvalCaseR
     return {
       ok: false,
       error: error instanceof Error ? error.message : 'Unable to fetch eval case results.'
+    };
+  }
+}
+
+export async function fetchEvalCaseResult(
+  evalRunId: string,
+  caseResultId: string
+): Promise<EvalCaseResultResult> {
+  try {
+    const response = await fetch(
+      `${getEvalApiBaseUrl()}/api/v1/eval-runs/${evalRunId}/results/${caseResultId}`,
+      { cache: 'no-store' }
+    );
+
+    if (!response.ok) {
+      return { ok: false, error: `eval-api returned HTTP ${response.status}` };
+    }
+
+    return { ok: true, result: (await response.json()) as EvalCaseResult };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Unable to fetch eval case result.'
     };
   }
 }
