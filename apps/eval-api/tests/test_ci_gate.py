@@ -51,6 +51,14 @@ def create_result(
     return response.json()
 
 
+def test_ci_gate_lists_threshold_presets() -> None:
+    response = client.get('/api/v1/ci/threshold-presets')
+
+    assert response.status_code == 200
+    preset_names = [preset['name'] for preset in response.json()]
+    assert preset_names == ['deterministic-smoke', 'strict-local']
+
+
 def test_ci_gate_passes_when_metrics_meet_thresholds() -> None:
     eval_run = create_eval_run('Passing CI gate')
     create_result(
@@ -89,6 +97,8 @@ def test_ci_gate_passes_when_metrics_meet_thresholds() -> None:
     assert body['eval_run_id'] == eval_run['id']
     assert body['status'] == 'passed'
     assert body['passed'] is True
+    assert body['preset'] is None
+    assert body['thresholds']['min_hit_at_5'] == 1
     assert body['metrics'] == {
         'pass_rate': 1,
         'hit_at_5_rate': 1,
@@ -99,6 +109,35 @@ def test_ci_gate_passes_when_metrics_meet_thresholds() -> None:
     }
     assert all(result['passed'] for result in body['threshold_results'])
     assert body['summary_markdown'].startswith('# RAGLens CI quality gate: PASSED')
+    assert '- preset: custom' in body['summary_markdown']
+
+
+def test_ci_gate_uses_named_threshold_preset() -> None:
+    eval_run = create_eval_run('Preset CI gate')
+    create_result(
+        eval_run['id'],
+        test_case_id='case-preset-1',
+        expected_sources=['refund-policy.md'],
+        retrieved_sources=['refund-policy.md'],
+        citations=['refund-policy.md'],
+        latency_ms=100,
+    )
+
+    response = client.post(
+        '/api/v1/ci/evaluate',
+        json={
+            'eval_run_id': eval_run['id'],
+            'preset': 'deterministic-smoke',
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body['preset'] == 'deterministic-smoke'
+    assert body['thresholds']['min_hit_at_5'] == 0.8
+    assert body['thresholds']['min_citation_validity'] == 0.95
+    assert body['passed'] is True
+    assert '- preset: deterministic-smoke' in body['summary_markdown']
 
 
 def test_ci_gate_fails_when_thresholds_are_missed() -> None:
