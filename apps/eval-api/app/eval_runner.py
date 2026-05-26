@@ -9,7 +9,10 @@ from app.eval_runs import (
     EvalRunResponse,
     to_eval_run_response,
 )
-from app.rag_client import RagApiClient
+from app.rag_client import RagApiClient, RagProviderTimeoutError
+
+
+PROVIDER_TIMEOUT_ERROR_MESSAGE = 'RAG provider request timed out.'
 
 
 def create_eval_runner_router(
@@ -79,6 +82,15 @@ def run_test_case(
             retrieved_sources=query_result.retrieved_sources,
             retrieved_context=query_result.retrieved_context,
             citations=query_result.citations,
+        )
+    except RagProviderTimeoutError:
+        request = CreateCaseResultRequest(
+            test_case_id=test_case.id,
+            question=question,
+            expected_answer=expected_answer,
+            status='failed',
+            error_message=PROVIDER_TIMEOUT_ERROR_MESSAGE,
+            expected_sources=reference_citations,
         )
     except Exception as exc:
         request = CreateCaseResultRequest(
