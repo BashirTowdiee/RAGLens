@@ -58,7 +58,10 @@ def test_build_request_body_includes_preset() -> None:
     }
 
 
-def test_main_returns_success_for_passing_gate(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_main_returns_success_for_passing_gate(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     def evaluate_ci_gate(_: CiGateClientConfig) -> dict:
         return {
             'passed': True,
@@ -73,7 +76,10 @@ def test_main_returns_success_for_passing_gate(monkeypatch: pytest.MonkeyPatch, 
     assert '# RAGLens CI quality gate: PASSED' in capsys.readouterr().out
 
 
-def test_main_returns_failure_for_failing_gate(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_main_returns_failure_for_failing_gate(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     def evaluate_ci_gate(_: CiGateClientConfig) -> dict:
         return {
             'passed': False,
@@ -90,7 +96,13 @@ def test_main_returns_failure_for_failing_gate(monkeypatch: pytest.MonkeyPatch, 
 
 def test_main_returns_request_error_for_http_error(monkeypatch: pytest.MonkeyPatch) -> None:
     def evaluate_ci_gate(_: CiGateClientConfig) -> dict:
-        raise HTTPError(url='http://localhost:8001/api/v1/ci/evaluate', code=404, msg='not found', hdrs=None, fp=None)
+        raise HTTPError(
+            url='http://localhost:8001/api/v1/ci/evaluate',
+            code=404,
+            msg='not found',
+            hdrs=None,
+            fp=None,
+        )
 
     monkeypatch.setattr(ci_gate_client, 'evaluate_ci_gate', evaluate_ci_gate)
 
