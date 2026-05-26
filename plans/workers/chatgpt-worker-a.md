@@ -228,3 +228,48 @@ Stale claims ignored: none.
 
 Next recommended action:
 - Open PR and wait for CI.
+
+## 2026-05-27T00:00:00+10:00
+
+Selected action: Implement next meaningful Phase 13 vertical slice.
+
+Active stage: Phase 13 - CI quality gate.
+
+Acceptance criteria advanced:
+- CI quality gate exposes deterministic threshold presets.
+- CI quality gate can evaluate a run using a named preset.
+- CI quality gate preserves custom threshold override behaviour.
+- CI quality gate response identifies the preset and effective thresholds used.
+- Markdown summary includes the preset/custom threshold source.
+
+Files touched:
+- apps/eval-api/app/ci_gate.py
+- apps/eval-api/tests/test_ci_gate.py
+- plans/events/2026-05-27-chatgpt-worker-a-ci-threshold-presets-claim.md
+- plans/workers/chatgpt-worker-a.md
+
+PR/branch:
+- Branch: agent/chatgpt-worker-a/ci-threshold-presets
+- PR: pending creation
+
+Commit/head SHA:
+- cbd7672db39dd6e57ef64c2bdbfa1f503aea0313 before this planning update
+
+Tests/checks run:
+- Local checks not run because the connector environment cannot clone GitHub.
+- Added focused FastAPI coverage for preset listing and preset-based CI gate evaluation.
+
+CI status: pending PR creation.
+
+Merge status: not merged.
+
+Blockers: none.
+
+Conflicting claims considered:
+- No open PRs found before source changes.
+- Existing agent branches are previous merged chatgpt-worker-a branches plus this owned branch.
+
+Stale claims ignored: none.
+
+Next recommended action:
+- Open PR and wait for CI.
