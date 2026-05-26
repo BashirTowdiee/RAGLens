@@ -273,3 +273,48 @@ Stale claims ignored: none.
 
 Next recommended action:
 - Open PR and wait for CI.
+
+## 2026-05-27T00:00:00+10:00
+
+Selected action: Implement next meaningful Phase 13 vertical slice.
+
+Active stage: Phase 13 - CI quality gate.
+
+Acceptance criteria advanced:
+- CI quality gate can be invoked through a deterministic command-line client.
+- Client exits 0 when the gate passes and 1 when the gate fails.
+- Client exits 2 for HTTP, network, timeout, or malformed JSON request failures.
+- Client prints the CI gate Markdown summary for workflow logs.
+- Client supports base URL, eval run ID, preset, and timeout arguments.
+
+Files touched:
+- apps/eval-api/app/ci_gate_client.py
+- apps/eval-api/tests/test_ci_gate_client.py
+- plans/events/2026-05-27-chatgpt-worker-a-ci-gate-client-claim.md
+- plans/workers/chatgpt-worker-a.md
+
+PR/branch:
+- Branch: agent/chatgpt-worker-a/ci-gate-client
+- PR: pending creation
+
+Commit/head SHA:
+- 7516a11ffcae8418aeead9aae9d13c4a5332676d before this planning update
+
+Tests/checks run:
+- Local checks not run because the connector environment cannot clone GitHub.
+- Added focused CLI unit coverage for argument parsing, request body generation, success, gate failure, and request failure exits.
+
+CI status: pending PR creation.
+
+Merge status: not merged.
+
+Blockers: none.
+
+Conflicting claims considered:
+- No open PRs found before source changes.
+- Existing agent branches are previous merged chatgpt-worker-a branches plus this owned branch.
+
+Stale claims ignored: none.
+
+Next recommended action:
+- Open PR and wait for CI.
