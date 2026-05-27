@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   InMemoryDocumentRepository,
   hybridScore,
-  keywordScore
+  keywordScore,
+  metadataMatches,
+  retrievalMetadataFor
 } from './documentRepository.js';
 
 describe('keywordScore', () => {
@@ -18,6 +20,29 @@ describe('hybridScore', () => {
     expect(hybridScore(1, 0)).toBeCloseTo(0.7);
     expect(hybridScore(0, 1)).toBeCloseTo(0.3);
     expect(hybridScore(0.5, 0.5)).toBeCloseTo(0.5);
+  });
+});
+
+describe('metadataMatches', () => {
+  it('matches exact shallow metadata filters', () => {
+    expect(metadataMatches({ source: 'policy', version: 2, active: true }, { source: 'policy' })).toBe(true);
+    expect(metadataMatches({ source: 'policy', version: 2, active: true }, { version: 2, active: true })).toBe(true);
+    expect(metadataMatches({ source: 'policy' }, { source: 'runbook' })).toBe(false);
+  });
+});
+
+describe('retrievalMetadataFor', () => {
+  it('merges document and chunk metadata with chunk metadata taking precedence', () => {
+    expect(
+      retrievalMetadataFor(
+        { metadata: { source: 'policy', region: 'global' } },
+        { metadata: { region: 'au', section: 'benefits' } }
+      )
+    ).toEqual({
+      source: 'policy',
+      region: 'au',
+      section: 'benefits'
+    });
   });
 });
 
@@ -106,5 +131,35 @@ describe('InMemoryDocumentRepository hybrid retrieval', () => {
     expect(hybridResults.map((result) => result.document.sourceId)).toEqual(
       expect.arrayContaining(['remote-guide', 'equipment-guide'])
     );
+  });
+});
+
+describe('InMemoryDocumentRepository metadata filters', () => {
+  it('filters retrieval results by document metadata', async () => {
+    const repository = new InMemoryDocumentRepository();
+    await repository.ingest({
+      sourceId: 'au-policy',
+      title: 'AU Policy',
+      sourceType: 'markdown',
+      metadata: { region: 'au', source: 'policy' },
+      content: '# Remote Policy\n\nRemote work applies to employees in Australia.'
+    });
+    await repository.ingest({
+      sourceId: 'us-policy',
+      title: 'US Policy',
+      sourceType: 'markdown',
+      metadata: { region: 'us', source: 'policy' },
+      content: '# Remote Policy\n\nRemote work applies to employees in the United States.'
+    });
+
+    const results = await repository.searchChunks({
+      query: 'remote work policy',
+      mode: 'hybrid',
+      limit: 5,
+      metadataFilters: { region: 'au' }
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].document.sourceId).toBe('au-policy');
   });
 });
