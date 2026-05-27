@@ -62,6 +62,34 @@ def create_dataset_with_test_case() -> tuple[dict, dict]:
     return dataset, test_case_response.json()
 
 
+def create_dataset_with_test_cases(case_count: int, version: str) -> tuple[dict, list[dict]]:
+    dataset_response = client.post(
+        '/api/v1/datasets',
+        json={
+            'name': 'Bounded Runner Dataset',
+            'version': version,
+            'description': 'Dataset used to test maxCases execution bounds.',
+        },
+    )
+    assert dataset_response.status_code == 201
+    dataset = dataset_response.json()
+
+    test_cases = []
+    for index in range(case_count):
+        test_case_response = client.post(
+            f"/api/v1/datasets/{dataset['id']}/test-cases",
+            json={
+                'question': f'What is policy item {index}?',
+                'expected_answer': f'Policy item {index} answer.',
+                'reference_citations': [f'policy-{index}.md'],
+            },
+        )
+        assert test_case_response.status_code == 201
+        test_cases.append(test_case_response.json())
+
+    return dataset, test_cases
+
+
 def test_create_and_fetch_eval_run() -> None:
     response = client.post(
         '/api/v1/eval-runs',
@@ -416,6 +444,43 @@ def test_execute_eval_run_calls_stub_rag_client_and_stores_result() -> None:
     assert results[0]['status'] == 'completed'
     assert results[0]['trace_id'].startswith('stub-')
     assert results[0]['answer'] == 'Stub answer for: What is the refund window?'
+
+
+def test_execute_eval_run_respects_max_cases_limit() -> None:
+    dataset, test_cases = create_dataset_with_test_cases(case_count=3, version='max-cases-v1')
+    eval_run = create_eval_run('Bounded executed run', dataset_id=dataset['id'])
+
+    response = client.post(f"/api/v1/eval-runs/{eval_run['id']}/execute?maxCases=2")
+
+    assert response.status_code == 200
+    executed = response.json()
+    assert executed['status'] == 'completed'
+    assert executed['summary']['total_cases'] == 2
+    assert executed['summary']['completed_cases'] == 2
+
+    results_response = client.get(f"/api/v1/eval-runs/{eval_run['id']}/results")
+
+    assert results_response.status_code == 200
+    results = results_response.json()['results']
+    assert len(results) == 2
+    assert {result['test_case_id'] for result in results} == {
+        test_cases[0]['id'],
+        test_cases[1]['id'],
+    }
+
+
+def test_execute_eval_run_rejects_invalid_max_cases_limit() -> None:
+    dataset, _ = create_dataset_with_test_cases(case_count=1, version='max-cases-invalid-v1')
+    eval_run = create_eval_run('Invalid bounded run', dataset_id=dataset['id'])
+
+    response = client.post(f"/api/v1/eval-runs/{eval_run['id']}/execute?maxCases=0")
+
+    assert response.status_code == 422
+
+    results_response = client.get(f"/api/v1/eval-runs/{eval_run['id']}/results")
+
+    assert results_response.status_code == 200
+    assert results_response.json()['results'] == []
 
 
 def test_execute_eval_run_returns_not_found_for_missing_dataset() -> None:
