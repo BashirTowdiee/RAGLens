@@ -28,6 +28,8 @@ export class InMemoryRetrievalTraceRepository implements RetrievalTraceRepositor
         sourceId: chunk.document.sourceId,
         title: chunk.document.title,
         score: chunk.score,
+        originalScore: chunk.originalScore,
+        rerankScore: chunk.rerankScore,
         chunkIndex: chunk.chunkIndex,
         headingPath: chunk.headingPath
       })),
