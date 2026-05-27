@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 
 from app.datasets import DatasetRepository, TestCaseRecord
 from app.eval_runs import (
@@ -22,7 +22,10 @@ def create_eval_runner_router(
     router = APIRouter(prefix='/api/v1/eval-runs', tags=['eval-runs'])
 
     @router.post('/{eval_run_id}/execute', response_model=EvalRunResponse)
-    def execute_eval_run(eval_run_id: str) -> EvalRunResponse:
+    def execute_eval_run(
+        eval_run_id: str,
+        max_cases: int | None = Query(default=None, alias='maxCases', ge=1),
+    ) -> EvalRunResponse:
         eval_run = eval_run_repository.get(eval_run_id)
         if eval_run is None:
             raise_eval_run_not_found()
@@ -37,7 +40,8 @@ def create_eval_runner_router(
                 },
             )
 
-        for test_case in test_cases:
+        selected_test_cases = select_test_cases_for_execution(test_cases, max_cases)
+        for test_case in selected_test_cases:
             run_test_case(
                 eval_run_repository,
                 rag_client,
@@ -53,6 +57,17 @@ def create_eval_runner_router(
         return to_eval_run_response(completed, eval_run_repository)
 
     return router
+
+
+def select_test_cases_for_execution(
+    test_cases: list[TestCaseRecord],
+    max_cases: int | None,
+) -> list[TestCaseRecord]:
+    if max_cases is None:
+        return test_cases
+
+    stable_ordered_cases = sorted(test_cases, key=lambda test_case: test_case.created_at)
+    return stable_ordered_cases[:max_cases]
 
 
 def run_test_case(

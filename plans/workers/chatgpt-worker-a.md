@@ -177,3 +177,48 @@ Stale claims ignored: none.
 
 Next recommended action:
 - Open PR and wait for CI.
+
+## 2026-05-27T14:55:00+10:00
+
+Selected action: implement next meaningful Phase 14 vertical slice.
+
+Active stage: Phase 14 - Production hardening.
+
+Acceptance criteria advanced:
+- Eval-run execution accepts an optional `maxCases` query parameter.
+- Sequential eval execution is bounded to the first N test cases when `maxCases` is supplied.
+- Invalid `maxCases` values are rejected before any case results are created.
+
+Files touched:
+- apps/eval-api/app/eval_runner.py
+- apps/eval-api/tests/test_eval_runs.py
+- plans/events/2026-05-27-chatgpt-worker-a-eval-run-max-cases-claim.md
+- plans/events/2026-05-27-chatgpt-worker-a-eval-run-max-cases-complete.md
+- plans/workers/chatgpt-worker-a.md
+
+PR/branch:
+- PR: #64
+- Branch: agent/chatgpt-worker-a/eval-run-max-cases
+
+Commit/head SHA:
+- Head SHA: 30f1650bc02f54c2f43651eb02c37e9c2922212e
+
+Tests/checks run:
+- Local checks not run because this connector environment cannot clone or execute the repository test suite.
+- CI run #278 is in progress.
+
+CI status: in progress.
+
+Merge status: not merged.
+
+Blockers: waiting for CI.
+
+Conflicting claims considered:
+- No open PRs were present before claiming.
+- Recent Phase 14 structured logs, retry policy, timeout, and request ID work was merged or non-overlapping.
+- PR #64 is mergeable.
+
+Stale claims ignored: none.
+
+Next recommended action:
+- Re-check PR #64 CI status and merge if green and mergeable.
