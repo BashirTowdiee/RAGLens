@@ -111,3 +111,33 @@ Stale claims ignored:
 - worker-b rate-limit branch claim superseded by PR #68.
 - worker-b concurrency branch superseded by PR #69.
 Next action: re-check main and start the first non-overlapping Phase 15 Advanced retrieval slice only after confirming the PR #70 reconciliation event is authoritative.
+
+## 2026-05-27T18:40:00+10:00
+
+Selected action: 6
+Active stage: Phase 15 - Advanced retrieval
+Acceptance criteria advanced:
+- None by worker-b in this cycle.
+- Metadata filters are already covered by merged PR #73.
+Files touched:
+- plans/workers/chatgpt-worker-b.md
+PR/branch:
+- PR: #73
+- Branch: agent/chatgpt-worker-a/phase15-metadata-filters
+- Superseded branch: agent/chatgpt-worker-b/phase15-metadata-filters
+Head SHA inspected: 1cc0b2b03ea9356e29002daab68be9e77a9cc0e1
+Merge SHA: 5397b03b614ed8162ea8a196fd25a60e3f9aa71c
+Tests/checks:
+- CI workflow run #323 completed successfully for PR #73.
+- Local checks were not run in the connector environment.
+CI status: success
+Merge status: merged before this cycle ended
+Blockers: none
+Conflicts considered:
+- Direct PR metadata showed PR #73 closed and merged, despite search returning it for the open PR query.
+- Worker-b metadata branch is superseded by worker-a PR #73 and must not continue.
+Stale claims ignored:
+- worker-b keyword branch superseded by PR #71.
+- worker-b hybrid branch superseded by PR #72.
+- worker-b metadata-filter branch superseded by PR #73.
+Next action: re-check main and choose the next non-overlapping Phase 15 item, likely query rewriting or reranking adapter.
