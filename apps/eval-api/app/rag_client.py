@@ -18,18 +18,32 @@ class RagQueryResult:
     citations: list[str] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class RagProviderRetryPolicy:
+    max_attempts: int = 2
+
+    def attempts(self) -> int:
+        return max(1, self.max_attempts)
+
+
 class RagClientError(Exception):
     pass
 
 
-class RagProviderTimeoutError(RagClientError):
+class RagProviderError(RagClientError):
+    def __init__(self, message: str, *, retryable: bool = False) -> None:
+        self.retryable = retryable
+        super().__init__(message)
+
+
+class RagProviderTimeoutError(RagProviderError):
     def __init__(self, timeout_seconds: float | None = None) -> None:
         self.timeout_seconds = timeout_seconds
         if timeout_seconds is None:
             message = 'RAG provider request timed out.'
         else:
             message = f'RAG provider request timed out after {timeout_seconds:g}s.'
-        super().__init__(message)
+        super().__init__(message, retryable=True)
 
 
 class RagApiClient:
