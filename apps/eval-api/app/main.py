@@ -12,6 +12,7 @@ from app.scoring_router import create_scoring_router
 from app.settings import get_settings
 
 REQUEST_ID_HEADER = 'x-request-id'
+MAX_REQUEST_ID_LENGTH = 128
 
 settings = get_settings()
 app = FastAPI(title='RAGLens Eval API', version='0.0.0')
@@ -20,9 +21,21 @@ eval_run_repository = InMemoryEvalRunRepository()
 rag_client = StubRagApiClient()
 
 
+def resolve_request_id(request: Request) -> str:
+    request_id = request.headers.get(REQUEST_ID_HEADER)
+    if request_id is None:
+        return str(uuid4())
+
+    request_id = request_id.strip()
+    if not request_id or len(request_id) > MAX_REQUEST_ID_LENGTH:
+        return str(uuid4())
+
+    return request_id
+
+
 @app.middleware('http')
 async def add_request_id_header(request: Request, call_next):
-    request_id = request.headers.get(REQUEST_ID_HEADER) or str(uuid4())
+    request_id = resolve_request_id(request)
     response = await call_next(request)
     response.headers[REQUEST_ID_HEADER] = request_id
     return response
