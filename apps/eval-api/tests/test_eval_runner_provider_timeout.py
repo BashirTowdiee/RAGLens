@@ -54,7 +54,11 @@ class NonRetryableRagClient(RagApiClient):
 def make_eval_run():
     repository = InMemoryEvalRunRepository()
     eval_run = repository.create(
-        CreateEvalRunRequest(dataset_id='dataset-id', name='Provider run', rag_config_id='config-id')
+        CreateEvalRunRequest(
+            dataset_id='dataset-id',
+            name='Provider run',
+            rag_config_id='config-id',
+        )
     )
     test_case = type(
         'TestCase',
