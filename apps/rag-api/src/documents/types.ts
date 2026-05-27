@@ -2,6 +2,10 @@ export type DocumentStatus = 'indexed';
 
 export type RetrievalMode = 'vector' | 'keyword' | 'hybrid';
 
+export type MetadataFilterValue = string | number | boolean;
+
+export type MetadataFilters = Record<string, MetadataFilterValue>;
+
 export type DocumentRecord = {
   id: string;
   sourceId: string;
@@ -80,4 +84,5 @@ export type SearchChunksInput = {
   query: string;
   limit?: number;
   mode?: RetrievalMode;
+  metadataFilters?: MetadataFilters;
 };
