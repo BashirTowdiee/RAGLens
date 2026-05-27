@@ -9,7 +9,7 @@ from app.eval_runs import (
     EvalRunResponse,
     to_eval_run_response,
 )
-from app.rag_client import RagApiClient, RagProviderTimeoutError
+from app.rag_client import RagApiClient, RagProviderError, RagProviderRetryPolicy
 
 PROVIDER_TIMEOUT_ERROR_MESSAGE = 'RAG provider request timed out.'
 
@@ -61,13 +61,19 @@ def run_test_case(
     eval_run_id: str,
     rag_config_id: str,
     test_case: TestCaseRecord,
+    retry_policy: RagProviderRetryPolicy | None = None,
 ) -> None:
     question = test_case.question
     expected_answer = getattr(test_case, 'expected_answer', '')
     reference_citations = getattr(test_case, 'reference_citations', [])
 
     try:
-        query_result = rag_client.query(question, rag_config_id)
+        query_result = query_with_retry(
+            rag_client,
+            question,
+            rag_config_id,
+            retry_policy or RagProviderRetryPolicy(),
+        )
         request = CreateCaseResultRequest(
             test_case_id=test_case.id,
             trace_id=query_result.trace_id,
@@ -82,13 +88,13 @@ def run_test_case(
             retrieved_context=query_result.retrieved_context,
             citations=query_result.citations,
         )
-    except RagProviderTimeoutError:
+    except RagProviderError as exc:
         request = CreateCaseResultRequest(
             test_case_id=test_case.id,
             question=question,
             expected_answer=expected_answer,
             status='failed',
-            error_message=PROVIDER_TIMEOUT_ERROR_MESSAGE,
+            error_message=provider_error_message(exc),
             expected_sources=reference_citations,
         )
     except Exception as exc:
@@ -102,6 +108,35 @@ def run_test_case(
         )
 
     eval_run_repository.create_result(eval_run_id, request)
+
+
+def query_with_retry(
+    rag_client: RagApiClient,
+    question: str,
+    rag_config_id: str,
+    retry_policy: RagProviderRetryPolicy,
+):
+    attempts = retry_policy.attempts()
+    last_error: RagProviderError | None = None
+
+    for attempt in range(1, attempts + 1):
+        try:
+            return rag_client.query(question, rag_config_id)
+        except RagProviderError as exc:
+            last_error = exc
+            if not exc.retryable or attempt == attempts:
+                raise
+
+    if last_error is not None:
+        raise last_error
+
+    return rag_client.query(question, rag_config_id)
+
+
+def provider_error_message(error: RagProviderError) -> str:
+    if 'timed out' in str(error):
+        return PROVIDER_TIMEOUT_ERROR_MESSAGE
+    return str(error)
 
 
 def raise_eval_run_not_found() -> None:
