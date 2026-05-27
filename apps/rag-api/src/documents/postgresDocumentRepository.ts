@@ -10,7 +10,7 @@ import type {
 } from './types.js';
 import { chunkMarkdown, contentHash } from './markdownChunker.js';
 import type { DocumentRepository } from './documentRepository.js';
-import { keywordScore } from './documentRepository.js';
+import { hybridScore, keywordScore } from './documentRepository.js';
 import {
   DeterministicEmbeddingProvider,
   vectorToSql,
@@ -147,6 +147,10 @@ export class PostgresDocumentRepository implements DocumentRepository {
       return this.searchKeywordChunks(input);
     }
 
+    if (input.mode === 'hybrid') {
+      return this.searchHybridChunks(input);
+    }
+
     const limit = input.limit ?? 5;
     const queryEmbedding = vectorToSql(this.embeddingProvider.embedText(input.query));
     const result = await this.pool.query<SearchChunkRow>(
@@ -200,6 +204,43 @@ export class PostgresDocumentRepository implements DocumentRepository {
 
     return result.rows
       .map((row) => ({ row, score: keywordScore(input.query, row.content) }))
+      .filter(({ score }) => score > 0)
+      .sort((left, right) => right.score - left.score || left.row.chunk_index - right.row.chunk_index)
+      .slice(0, limit)
+      .map(({ row, score }) => mapRetrievedChunkRow(row, score));
+  }
+
+  private async searchHybridChunks(input: SearchChunksInput): Promise<RetrievedChunkRecord[]> {
+    const limit = input.limit ?? 5;
+    const queryEmbedding = vectorToSql(this.embeddingProvider.embedText(input.query));
+    const result = await this.pool.query<SearchChunkRow>(
+      `SELECT
+        chunk.id,
+        chunk.document_id,
+        chunk.chunk_index,
+        chunk.heading_path,
+        chunk.content,
+        chunk.token_count_estimate,
+        chunk.content_hash,
+        chunk.metadata,
+        chunk.created_at,
+        document.source_id,
+        document.title,
+        document.source_uri,
+        document.version,
+        1 - (chunk.embedding <=> $1::vector) AS score
+      FROM rag.document_chunks chunk
+      INNER JOIN rag.documents document ON document.id = chunk.document_id
+      WHERE chunk.embedding IS NOT NULL
+      ORDER BY chunk.chunk_index ASC`,
+      [queryEmbedding]
+    );
+
+    return result.rows
+      .map((row) => ({
+        row,
+        score: hybridScore(Number(row.score), keywordScore(input.query, row.content))
+      }))
       .filter(({ score }) => score > 0)
       .sort((left, right) => right.score - left.score || left.row.chunk_index - right.row.chunk_index)
       .slice(0, limit)
