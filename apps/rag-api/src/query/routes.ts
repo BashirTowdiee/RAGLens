@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { QueryProviderFailure, QueryService } from './queryService.js';
 import type { QueryTraceRepository } from './queryTraceRepository.js';
 
-const RetrievalModeSchema = z.enum(['vector', 'keyword', 'hybrid']);
+const RetrievalModeSchema = z.enum(['vector', 'keyword', 'hybrid', 'hybrid_reranked']);
 
 const QueryRequestSchema = z.object({
   question: z.string().trim().min(1),
