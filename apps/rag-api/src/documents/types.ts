@@ -1,5 +1,7 @@
 export type DocumentStatus = 'indexed';
 
+export type RetrievalMode = 'vector' | 'keyword';
+
 export type DocumentRecord = {
   id: string;
   sourceId: string;
@@ -77,4 +79,5 @@ export type IngestDocumentResult = {
 export type SearchChunksInput = {
   query: string;
   limit?: number;
+  mode?: RetrievalMode;
 };

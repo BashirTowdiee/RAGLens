@@ -5,6 +5,7 @@ import type {
   IngestDocumentInput,
   IngestDocumentResult,
   RetrievedChunkRecord,
+  RetrievalMode,
   SearchChunksInput
 } from './types.js';
 import { chunkMarkdown, contentHash } from './markdownChunker.js';
@@ -103,21 +104,31 @@ export class InMemoryDocumentRepository implements DocumentRepository {
   }
 
   async searchChunks(input: SearchChunksInput): Promise<RetrievedChunkRecord[]> {
-    const queryEmbedding = this.embeddingProvider.embedText(input.query);
     const limit = input.limit ?? 5;
+    const mode = input.mode ?? 'vector';
     const retrievedChunks: RetrievedChunkRecord[] = [];
 
     for (const chunk of [...this.chunksByDocumentId.values()].flat()) {
       const document = this.documents.get(chunk.documentId);
-      const embedding = this.embeddingsByChunkId.get(chunk.id);
+      if (!document) {
+        continue;
+      }
 
-      if (!document || !embedding) {
+      const score = scoreChunkForMode({
+        chunk,
+        query: input.query,
+        mode,
+        embedding: this.embeddingsByChunkId.get(chunk.id),
+        embeddingProvider: this.embeddingProvider
+      });
+
+      if (score <= 0) {
         continue;
       }
 
       retrievedChunks.push({
         ...chunk,
-        score: cosineSimilarity(queryEmbedding, embedding),
+        score,
         document: {
           id: document.id,
           sourceId: document.sourceId,
@@ -132,4 +143,48 @@ export class InMemoryDocumentRepository implements DocumentRepository {
       .sort((left, right) => right.score - left.score || left.chunkIndex - right.chunkIndex)
       .slice(0, limit);
   }
+}
+
+type ScoreChunkInput = {
+  chunk: DocumentChunkRecord;
+  query: string;
+  mode: RetrievalMode;
+  embedding?: EmbeddingVector;
+  embeddingProvider: EmbeddingProvider;
+};
+
+function scoreChunkForMode(input: ScoreChunkInput): number {
+  if (input.mode === 'keyword') {
+    return keywordScore(input.query, input.chunk.content);
+  }
+
+  if (!input.embedding) {
+    return 0;
+  }
+
+  return cosineSimilarity(input.embeddingProvider.embedText(input.query), input.embedding);
+}
+
+export function keywordScore(query: string, content: string): number {
+  const queryTerms = normalisedTerms(query);
+  if (queryTerms.length === 0) {
+    return 0;
+  }
+
+  const contentTerms = normalisedTerms(content);
+  if (contentTerms.length === 0) {
+    return 0;
+  }
+
+  const contentTermSet = new Set(contentTerms);
+  const matchedTerms = queryTerms.filter((term) => contentTermSet.has(term));
+
+  return matchedTerms.length / queryTerms.length;
+}
+
+function normalisedTerms(value: string): string[] {
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9]+/u)
+    .filter(Boolean);
 }
