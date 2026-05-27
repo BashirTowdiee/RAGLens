@@ -3,9 +3,12 @@ import { z } from 'zod';
 import { QueryProviderFailure, QueryService } from './queryService.js';
 import type { QueryTraceRepository } from './queryTraceRepository.js';
 
+const RetrievalModeSchema = z.enum(['vector', 'keyword', 'hybrid']);
+
 const QueryRequestSchema = z.object({
   question: z.string().trim().min(1),
-  topK: z.number().int().min(1).max(20).optional()
+  topK: z.number().int().min(1).max(20).optional(),
+  retrievalMode: RetrievalModeSchema.optional()
 });
 
 export async function registerQueryRoutes(

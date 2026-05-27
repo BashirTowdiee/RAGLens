@@ -52,6 +52,7 @@ export type RetrievalTraceRecord = {
   id: string;
   query: string;
   limit: number;
+  retrievalMode: RetrievalMode;
   resultCount: number;
   durationMs: number;
   chunks: RetrievalTraceChunk[];
@@ -61,6 +62,7 @@ export type RetrievalTraceRecord = {
 export type CreateRetrievalTraceInput = {
   query: string;
   limit: number;
+  retrievalMode: RetrievalMode;
   durationMs: number;
   chunks: RetrievedChunkRecord[];
 };

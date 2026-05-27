@@ -1,6 +1,6 @@
 import type { DocumentRepository } from '../documents/documentRepository.js';
 import type { RetrievalTraceRepository } from '../documents/retrievalTraceRepository.js';
-import type { RetrievedChunkRecord } from '../documents/types.js';
+import type { RetrievedChunkRecord, RetrievalMode } from '../documents/types.js';
 import {
   AnswerProviderError,
   DeterministicAnswerProvider,
@@ -43,6 +43,7 @@ export type QueryResult = {
 export type QueryInput = {
   question: string;
   topK?: number;
+  retrievalMode?: RetrievalMode;
 };
 
 export class QueryProviderFailure extends Error {
@@ -66,17 +67,20 @@ export class QueryService {
   async answer(input: QueryInput): Promise<QueryResult> {
     const startTime = Date.now();
     const topK = input.topK ?? 5;
+    const retrievalMode = input.retrievalMode ?? 'vector';
     const config: QueryTraceConfig = {
       topK,
-      retrievalMode: 'vector'
+      retrievalMode
     };
     const chunks = await this.documentRepository.searchChunks({
       query: input.question,
-      limit: topK
+      limit: topK,
+      mode: retrievalMode
     });
     await this.retrievalTraceRepository.create({
       query: input.question,
       limit: topK,
+      retrievalMode,
       durationMs: Date.now() - startTime,
       chunks
     });

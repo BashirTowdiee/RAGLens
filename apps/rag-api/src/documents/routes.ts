@@ -3,6 +3,8 @@ import { z } from 'zod';
 import type { DocumentRepository } from './documentRepository.js';
 import type { RetrievalTraceRepository } from './retrievalTraceRepository.js';
 
+const RetrievalModeSchema = z.enum(['vector', 'keyword', 'hybrid']);
+
 const IngestDocumentSchema = z.object({
   sourceId: z.string().min(1),
   title: z.string().min(1),
@@ -15,7 +17,8 @@ const IngestDocumentSchema = z.object({
 
 const SearchChunksQuerySchema = z.object({
   q: z.string().trim().min(1),
-  limit: z.coerce.number().int().min(1).max(20).optional()
+  limit: z.coerce.number().int().min(1).max(20).optional(),
+  mode: RetrievalModeSchema.optional()
 });
 
 export async function registerDocumentRoutes(
@@ -63,13 +66,16 @@ export async function registerDocumentRoutes(
 
     const startTime = Date.now();
     const limit = parseResult.data.limit ?? 5;
+    const retrievalMode = parseResult.data.mode ?? 'vector';
     const chunks = await repository.searchChunks({
       query: parseResult.data.q,
-      limit
+      limit,
+      mode: retrievalMode
     });
     const trace = await traceRepository.create({
       query: parseResult.data.q,
       limit,
+      retrievalMode,
       durationMs: Date.now() - startTime,
       chunks
     });

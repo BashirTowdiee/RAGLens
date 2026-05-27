@@ -18,6 +18,7 @@ export class InMemoryRetrievalTraceRepository implements RetrievalTraceRepositor
       id: randomUUID(),
       query: input.query,
       limit: input.limit,
+      retrievalMode: input.retrievalMode,
       resultCount: input.chunks.length,
       durationMs: input.durationMs,
       chunks: input.chunks.map<RetrievalTraceChunk>((chunk, index) => ({
