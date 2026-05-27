@@ -127,13 +127,15 @@ export class InMemoryDocumentRepository implements DocumentRepository {
         embeddingProvider: this.embeddingProvider
       });
 
-      if (score <= 0) {
+      if (score.score <= 0) {
         continue;
       }
 
       retrievedChunks.push({
         ...chunk,
-        score,
+        score: score.score,
+        originalScore: score.originalScore,
+        rerankScore: score.rerankScore,
         document: {
           id: document.id,
           sourceId: document.sourceId,
@@ -158,28 +160,56 @@ type ScoreChunkInput = {
   embeddingProvider: EmbeddingProvider;
 };
 
-export function scoreChunkForMode(input: ScoreChunkInput): number {
+export type RetrievalScore = {
+  score: number;
+  originalScore?: number;
+  rerankScore?: number;
+};
+
+export function scoreChunkForMode(input: ScoreChunkInput): RetrievalScore {
   const keyword = keywordScore(input.query, input.chunk.content);
 
   if (input.mode === 'keyword') {
-    return keyword;
+    return { score: keyword };
   }
 
   const vector = input.embedding
     ? cosineSimilarity(input.embeddingProvider.embedText(input.query), input.embedding)
     : 0;
 
-  if (input.mode === 'hybrid') {
-    return hybridScore(vector, keyword);
+  if (input.mode === 'hybrid' || input.mode === 'hybrid_reranked') {
+    const originalScore = hybridScore(vector, keyword);
+
+    if (input.mode === 'hybrid') {
+      return { score: originalScore };
+    }
+
+    const rerankScoreValue = rerankScore(input.query, input.chunk);
+
+    return {
+      score: rerankedScore(originalScore, rerankScoreValue),
+      originalScore,
+      rerankScore: rerankScoreValue
+    };
   }
 
-  return vector;
+  return { score: vector };
 }
 
 export function hybridScore(vectorScore: number, keywordScoreValue: number): number {
   const safeVectorScore = Math.max(vectorScore, 0);
   const safeKeywordScore = Math.max(keywordScoreValue, 0);
   return safeVectorScore * 0.7 + safeKeywordScore * 0.3;
+}
+
+export function rerankScore(query: string, chunk: Pick<DocumentChunkRecord, 'content' | 'headingPath'>): number {
+  const headingScore = keywordScore(query, chunk.headingPath.join(' '));
+  const contentScore = keywordScore(query, chunk.content);
+  return Math.max(headingScore, contentScore * 0.5);
+}
+
+export function rerankedScore(originalScore: number, rerankScoreValue: number): number {
+  return Math.max(originalScore, 0) * 0.6 + Math.max(rerankScoreValue, 0) * 0.4;
 }
 
 export function keywordScore(query: string, content: string): number {
