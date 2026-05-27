@@ -10,6 +10,7 @@ import type {
 } from './types.js';
 import { chunkMarkdown, contentHash } from './markdownChunker.js';
 import type { DocumentRepository } from './documentRepository.js';
+import { keywordScore } from './documentRepository.js';
 import {
   DeterministicEmbeddingProvider,
   vectorToSql,
@@ -44,6 +45,13 @@ type ChunkRow = {
 
 type SearchChunkRow = ChunkRow & {
   score: number;
+  source_id: string;
+  title: string;
+  source_uri: string | null;
+  version: string;
+};
+
+type ChunkWithDocumentRow = ChunkRow & {
   source_id: string;
   title: string;
   source_uri: string | null;
@@ -135,6 +143,10 @@ export class PostgresDocumentRepository implements DocumentRepository {
   }
 
   async searchChunks(input: SearchChunksInput): Promise<RetrievedChunkRecord[]> {
+    if (input.mode === 'keyword') {
+      return this.searchKeywordChunks(input);
+    }
+
     const limit = input.limit ?? 5;
     const queryEmbedding = vectorToSql(this.embeddingProvider.embedText(input.query));
     const result = await this.pool.query<SearchChunkRow>(
@@ -161,17 +173,37 @@ export class PostgresDocumentRepository implements DocumentRepository {
       [queryEmbedding, limit]
     );
 
-    return result.rows.map((row) => ({
-      ...mapChunkRow(row),
-      score: Number(row.score),
-      document: {
-        id: row.document_id,
-        sourceId: row.source_id,
-        title: row.title,
-        sourceUri: row.source_uri ?? undefined,
-        version: row.version
-      }
-    }));
+    return result.rows.map((row) => mapRetrievedChunkRow(row, Number(row.score)));
+  }
+
+  private async searchKeywordChunks(input: SearchChunksInput): Promise<RetrievedChunkRecord[]> {
+    const limit = input.limit ?? 5;
+    const result = await this.pool.query<ChunkWithDocumentRow>(
+      `SELECT
+        chunk.id,
+        chunk.document_id,
+        chunk.chunk_index,
+        chunk.heading_path,
+        chunk.content,
+        chunk.token_count_estimate,
+        chunk.content_hash,
+        chunk.metadata,
+        chunk.created_at,
+        document.source_id,
+        document.title,
+        document.source_uri,
+        document.version
+      FROM rag.document_chunks chunk
+      INNER JOIN rag.documents document ON document.id = chunk.document_id
+      ORDER BY chunk.chunk_index ASC`
+    );
+
+    return result.rows
+      .map((row) => ({ row, score: keywordScore(input.query, row.content) }))
+      .filter(({ score }) => score > 0)
+      .sort((left, right) => right.score - left.score || left.row.chunk_index - right.row.chunk_index)
+      .slice(0, limit)
+      .map(({ row, score }) => mapRetrievedChunkRow(row, score));
   }
 
   private async upsertDocument(
@@ -252,5 +284,19 @@ function mapChunkRow(row: ChunkRow): DocumentChunkRecord {
     contentHash: row.content_hash,
     metadata: row.metadata,
     createdAt: row.created_at.toISOString()
+  };
+}
+
+function mapRetrievedChunkRow(row: ChunkWithDocumentRow, score: number): RetrievedChunkRecord {
+  return {
+    ...mapChunkRow(row),
+    score,
+    document: {
+      id: row.document_id,
+      sourceId: row.source_id,
+      title: row.title,
+      sourceUri: row.source_uri ?? undefined,
+      version: row.version
+    }
   };
 }
