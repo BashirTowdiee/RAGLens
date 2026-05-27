@@ -43,7 +43,11 @@ def create_eval_runner_router(
             )
 
         selected_test_cases = select_test_cases_for_execution(test_cases, max_cases)
+        completed_test_case_ids = completed_case_ids(eval_run_repository, eval_run.id)
         for test_case in selected_test_cases:
+            if test_case.id in completed_test_case_ids:
+                continue
+
             if has_reached_cost_limit(eval_run_repository, eval_run.id, max_cost_usd):
                 break
 
@@ -73,6 +77,17 @@ def select_test_cases_for_execution(
 
     stable_ordered_cases = sorted(test_cases, key=lambda test_case: test_case.created_at)
     return stable_ordered_cases[:max_cases]
+
+
+def completed_case_ids(
+    eval_run_repository: EvalRunRepository,
+    eval_run_id: str,
+) -> set[str]:
+    results = eval_run_repository.list_results(eval_run_id)
+    if results is None:
+        return set()
+
+    return {result.test_case_id for result in results if result.status == 'completed'}
 
 
 def has_reached_cost_limit(
