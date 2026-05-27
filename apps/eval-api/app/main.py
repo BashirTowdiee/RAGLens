@@ -1,3 +1,4 @@
+import logging
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
@@ -13,7 +14,9 @@ from app.settings import get_settings
 
 REQUEST_ID_HEADER = 'x-request-id'
 MAX_REQUEST_ID_LENGTH = 128
+REQUEST_LOGGER_NAME = 'raglens.eval_api.requests'
 
+logger = logging.getLogger(REQUEST_LOGGER_NAME)
 settings = get_settings()
 app = FastAPI(title='RAGLens Eval API', version='0.0.0')
 dataset_repository = InMemoryDatasetRepository()
@@ -33,11 +36,24 @@ def resolve_request_id(request: Request) -> str:
     return request_id
 
 
+def log_request_completed(request: Request, request_id: str, status_code: int) -> None:
+    logger.info(
+        'eval_api_request_completed',
+        extra={
+            'request_id': request_id,
+            'http_method': request.method,
+            'path': request.url.path,
+            'status_code': status_code,
+        },
+    )
+
+
 @app.middleware('http')
 async def add_request_id_header(request: Request, call_next):
     request_id = resolve_request_id(request)
     response = await call_next(request)
     response.headers[REQUEST_ID_HEADER] = request_id
+    log_request_completed(request, request_id, response.status_code)
     return response
 
 
