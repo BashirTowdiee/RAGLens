@@ -324,7 +324,10 @@ function hybridScoreForRow(input: SearchChunksInput, row: SearchChunkRow): Retri
     return { score: originalScore };
   }
 
-  const rerankScoreValue = rerankScore(input.query, row);
+  const rerankScoreValue = rerankScore(input.query, {
+    content: row.content,
+    headingPath: row.heading_path
+  });
 
   return {
     score: rerankedScore(originalScore, rerankScoreValue),
