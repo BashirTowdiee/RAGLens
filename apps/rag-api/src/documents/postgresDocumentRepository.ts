@@ -14,6 +14,8 @@ import {
   hybridScore,
   keywordScore,
   metadataMatches,
+  rerankedScore,
+  rerankScore,
   retrievalMetadataFor
 } from './documentRepository.js';
 import {
@@ -63,6 +65,12 @@ type ChunkWithDocumentRow = ChunkRow & {
   source_uri: string | null;
   version: string;
   document_metadata: Record<string, unknown>;
+};
+
+type RetrievedScore = {
+  score: number;
+  originalScore?: number;
+  rerankScore?: number;
 };
 
 export class PostgresDocumentRepository implements DocumentRepository {
@@ -154,7 +162,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
       return this.searchKeywordChunks(input);
     }
 
-    if (input.mode === 'hybrid') {
+    if (input.mode === 'hybrid' || input.mode === 'hybrid_reranked') {
       return this.searchHybridChunks(input);
     }
 
@@ -187,7 +195,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
     return result.rows
       .filter((row) => metadataMatches(rowMetadata(row), input.metadataFilters))
       .slice(0, limit)
-      .map((row) => mapRetrievedChunkRow(row, Number(row.score)));
+      .map((row) => mapRetrievedChunkRow(row, { score: Number(row.score) }));
   }
 
   private async searchKeywordChunks(input: SearchChunksInput): Promise<RetrievedChunkRecord[]> {
@@ -215,9 +223,9 @@ export class PostgresDocumentRepository implements DocumentRepository {
 
     return result.rows
       .filter((row) => metadataMatches(rowMetadata(row), input.metadataFilters))
-      .map((row) => ({ row, score: keywordScore(input.query, row.content) }))
-      .filter(({ score }) => score > 0)
-      .sort((left, right) => right.score - left.score || left.row.chunk_index - right.row.chunk_index)
+      .map((row) => ({ row, score: { score: keywordScore(input.query, row.content) } }))
+      .filter(({ score }) => score.score > 0)
+      .sort((left, right) => right.score.score - left.score.score || left.row.chunk_index - right.row.chunk_index)
       .slice(0, limit)
       .map(({ row, score }) => mapRetrievedChunkRow(row, score));
   }
@@ -251,12 +259,9 @@ export class PostgresDocumentRepository implements DocumentRepository {
 
     return result.rows
       .filter((row) => metadataMatches(rowMetadata(row), input.metadataFilters))
-      .map((row) => ({
-        row,
-        score: hybridScore(Number(row.score), keywordScore(input.query, row.content))
-      }))
-      .filter(({ score }) => score > 0)
-      .sort((left, right) => right.score - left.score || left.row.chunk_index - right.row.chunk_index)
+      .map((row) => ({ row, score: hybridScoreForRow(input, row) }))
+      .filter(({ score }) => score.score > 0)
+      .sort((left, right) => right.score.score - left.score.score || left.row.chunk_index - right.row.chunk_index)
       .slice(0, limit)
       .map(({ row, score }) => mapRetrievedChunkRow(row, score));
   }
@@ -312,6 +317,22 @@ export function createDocumentPool(databaseUrl: string): Pool {
   return new Pool({ connectionString: databaseUrl });
 }
 
+function hybridScoreForRow(input: SearchChunksInput, row: SearchChunkRow): RetrievedScore {
+  const originalScore = hybridScore(Number(row.score), keywordScore(input.query, row.content));
+
+  if (input.mode !== 'hybrid_reranked') {
+    return { score: originalScore };
+  }
+
+  const rerankScoreValue = rerankScore(input.query, row);
+
+  return {
+    score: rerankedScore(originalScore, rerankScoreValue),
+    originalScore,
+    rerankScore: rerankScoreValue
+  };
+}
+
 function mapDocumentRow(row: DocumentRow): DocumentRecord {
   return {
     id: row.id,
@@ -342,10 +363,12 @@ function mapChunkRow(row: ChunkRow): DocumentChunkRecord {
   };
 }
 
-function mapRetrievedChunkRow(row: ChunkWithDocumentRow, score: number): RetrievedChunkRecord {
+function mapRetrievedChunkRow(row: ChunkWithDocumentRow, score: RetrievedScore): RetrievedChunkRecord {
   return {
     ...mapChunkRow(row),
-    score,
+    score: score.score,
+    originalScore: score.originalScore,
+    rerankScore: score.rerankScore,
     document: {
       id: row.document_id,
       sourceId: row.source_id,
