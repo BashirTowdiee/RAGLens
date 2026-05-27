@@ -11,7 +11,6 @@ from app.eval_runs import (
 )
 from app.rag_client import RagApiClient, RagProviderTimeoutError
 
-
 PROVIDER_TIMEOUT_ERROR_MESSAGE = 'RAG provider request timed out.'
 
 
