@@ -4,6 +4,7 @@ import type {
   DocumentRecord,
   IngestDocumentInput,
   IngestDocumentResult,
+  MetadataFilters,
   RetrievedChunkRecord,
   RetrievalMode,
   SearchChunksInput
@@ -114,6 +115,10 @@ export class InMemoryDocumentRepository implements DocumentRepository {
         continue;
       }
 
+      if (!metadataMatches(retrievalMetadataFor(document, chunk), input.metadataFilters)) {
+        continue;
+      }
+
       const score = scoreChunkForMode({
         chunk,
         query: input.query,
@@ -192,6 +197,27 @@ export function keywordScore(query: string, content: string): number {
   const matchedTerms = queryTerms.filter((term) => contentTermSet.has(term));
 
   return matchedTerms.length / queryTerms.length;
+}
+
+export function retrievalMetadataFor(
+  document: Pick<DocumentRecord, 'metadata'>,
+  chunk: Pick<DocumentChunkRecord, 'metadata'>
+): Record<string, unknown> {
+  return {
+    ...document.metadata,
+    ...chunk.metadata
+  };
+}
+
+export function metadataMatches(
+  metadata: Record<string, unknown>,
+  filters?: MetadataFilters
+): boolean {
+  if (!filters || Object.keys(filters).length === 0) {
+    return true;
+  }
+
+  return Object.entries(filters).every(([key, expectedValue]) => metadata[key] === expectedValue);
 }
 
 function normalisedTerms(value: string): string[] {
