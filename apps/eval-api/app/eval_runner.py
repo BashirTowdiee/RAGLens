@@ -13,6 +13,8 @@ from app.eval_runs import (
 from app.rag_client import RagApiClient, RagProviderError, RagProviderRetryPolicy
 
 PROVIDER_TIMEOUT_ERROR_MESSAGE = 'RAG provider request timed out.'
+MAX_EXECUTE_REQUESTS_PER_RUN = 20
+_execute_request_counts: dict[str, int] = {}
 
 
 def create_eval_runner_router(
@@ -31,6 +33,8 @@ def create_eval_runner_router(
         eval_run = eval_run_repository.get(eval_run_id)
         if eval_run is None:
             raise_eval_run_not_found()
+
+        increment_execute_request_count(eval_run.id)
 
         test_cases = dataset_repository.list_test_cases(eval_run.dataset_id)
         if test_cases is None:
@@ -66,6 +70,19 @@ def create_eval_runner_router(
         return to_eval_run_response(completed, eval_run_repository)
 
     return router
+
+
+def increment_execute_request_count(eval_run_id: str) -> None:
+    next_count = _execute_request_counts.get(eval_run_id, 0) + 1
+    _execute_request_counts[eval_run_id] = next_count
+    if next_count > MAX_EXECUTE_REQUESTS_PER_RUN:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                'error': 'eval_run_execute_rate_limited',
+                'message': 'Eval run execute request limit exceeded.',
+            },
+        )
 
 
 def select_test_cases_for_execution(
