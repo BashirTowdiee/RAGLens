@@ -13,26 +13,26 @@ describe('InMemoryDocumentRepository keyword retrieval', () => {
   it('returns lexical matches ordered by keyword score', async () => {
     const repository = new InMemoryDocumentRepository();
     await repository.ingest({
-      sourceId: 'remote-policy',
-      title: 'Remote Policy',
+      sourceId: 'remote-guide',
+      title: 'Remote Guide',
       sourceType: 'markdown',
-      content: '# Remote Policy\n\n## Work\n\nRemote work policy applies to eligible employees.'
+      content: '# Remote Guide\n\n## Work\n\nRemote work applies to eligible employees.'
     });
     await repository.ingest({
-      sourceId: 'equipment-policy',
-      title: 'Equipment Policy',
+      sourceId: 'equipment-guide',
+      title: 'Equipment Guide',
       sourceType: 'markdown',
-      content: '# Equipment Policy\n\n## Devices\n\nEmployees receive laptops and monitors.'
+      content: '# Equipment Guide\n\n## Devices\n\nEmployees receive laptops and monitors.'
     });
 
     const results = await repository.searchChunks({
-      query: 'remote work policy',
+      query: 'remote work',
       mode: 'keyword',
       limit: 5
     });
 
     expect(results).toHaveLength(2);
-    expect(results[0].document.sourceId).toBe('remote-policy');
+    expect(results[0].document.sourceId).toBe('remote-guide');
     expect(results[0].score).toBeGreaterThan(results[1].score);
     expect(results.every((result) => result.score > 0)).toBe(true);
   });
