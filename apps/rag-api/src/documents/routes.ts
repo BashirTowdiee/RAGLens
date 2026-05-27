@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { DocumentRepository } from './documentRepository.js';
 import type { RetrievalTraceRepository } from './retrievalTraceRepository.js';
 
-const RetrievalModeSchema = z.enum(['vector', 'keyword', 'hybrid']);
+const RetrievalModeSchema = z.enum(['vector', 'keyword', 'hybrid', 'hybrid_reranked']);
 
 const IngestDocumentSchema = z.object({
   sourceId: z.string().min(1),
