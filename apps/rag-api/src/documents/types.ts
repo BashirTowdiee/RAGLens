@@ -1,6 +1,6 @@
 export type DocumentStatus = 'indexed';
 
-export type RetrievalMode = 'vector' | 'keyword';
+export type RetrievalMode = 'vector' | 'keyword' | 'hybrid';
 
 export type DocumentRecord = {
   id: string;
