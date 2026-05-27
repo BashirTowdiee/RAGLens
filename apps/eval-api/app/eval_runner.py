@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from app.datasets import DatasetRepository, TestCaseRecord
 from app.eval_runs import (
+    CaseResultRecord,
     CreateCaseResultRequest,
     EvalRunRepository,
     EvalRunResponse,
@@ -25,6 +26,7 @@ def create_eval_runner_router(
     def execute_eval_run(
         eval_run_id: str,
         max_cases: int | None = Query(default=None, alias='maxCases', ge=1),
+        max_cost_usd: float | None = Query(default=None, alias='maxCostUsd', ge=0),
     ) -> EvalRunResponse:
         eval_run = eval_run_repository.get(eval_run_id)
         if eval_run is None:
@@ -42,6 +44,9 @@ def create_eval_runner_router(
 
         selected_test_cases = select_test_cases_for_execution(test_cases, max_cases)
         for test_case in selected_test_cases:
+            if has_reached_cost_limit(eval_run_repository, eval_run.id, max_cost_usd):
+                break
+
             run_test_case(
                 eval_run_repository,
                 rag_client,
@@ -68,6 +73,25 @@ def select_test_cases_for_execution(
 
     stable_ordered_cases = sorted(test_cases, key=lambda test_case: test_case.created_at)
     return stable_ordered_cases[:max_cases]
+
+
+def has_reached_cost_limit(
+    eval_run_repository: EvalRunRepository,
+    eval_run_id: str,
+    max_cost_usd: float | None,
+) -> bool:
+    if max_cost_usd is None:
+        return False
+
+    results = eval_run_repository.list_results(eval_run_id)
+    if results is None:
+        return False
+
+    return total_cost_usd(results) >= max_cost_usd
+
+
+def total_cost_usd(results: list[CaseResultRecord]) -> float:
+    return sum(result.cost_usd for result in results)
 
 
 def run_test_case(
