@@ -15,6 +15,7 @@ from app.rag_client import RagApiClient, RagProviderError, RagProviderRetryPolic
 PROVIDER_TIMEOUT_ERROR_MESSAGE = 'RAG provider request timed out.'
 MAX_EXECUTE_REQUESTS_PER_RUN = 20
 _execute_request_counts: dict[str, int] = {}
+_active_eval_run_ids: set[str] = set()
 
 
 def create_eval_runner_router(
@@ -35,39 +36,42 @@ def create_eval_runner_router(
             raise_eval_run_not_found()
 
         increment_execute_request_count(eval_run.id)
+        acquire_eval_run_execution(eval_run.id)
+        try:
+            test_cases = dataset_repository.list_test_cases(eval_run.dataset_id)
+            if test_cases is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail={
+                        'error': 'dataset_not_found',
+                        'message': 'Dataset was not found.',
+                    },
+                )
 
-        test_cases = dataset_repository.list_test_cases(eval_run.dataset_id)
-        if test_cases is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={
-                    'error': 'dataset_not_found',
-                    'message': 'Dataset was not found.',
-                },
-            )
+            selected_test_cases = select_test_cases_for_execution(test_cases, max_cases)
+            completed_test_case_ids = completed_case_ids(eval_run_repository, eval_run.id)
+            for test_case in selected_test_cases:
+                if test_case.id in completed_test_case_ids:
+                    continue
 
-        selected_test_cases = select_test_cases_for_execution(test_cases, max_cases)
-        completed_test_case_ids = completed_case_ids(eval_run_repository, eval_run.id)
-        for test_case in selected_test_cases:
-            if test_case.id in completed_test_case_ids:
-                continue
+                if has_reached_cost_limit(eval_run_repository, eval_run.id, max_cost_usd):
+                    break
 
-            if has_reached_cost_limit(eval_run_repository, eval_run.id, max_cost_usd):
-                break
+                run_test_case(
+                    eval_run_repository,
+                    rag_client,
+                    eval_run.id,
+                    eval_run.rag_config_id,
+                    test_case,
+                )
 
-            run_test_case(
-                eval_run_repository,
-                rag_client,
-                eval_run.id,
-                eval_run.rag_config_id,
-                test_case,
-            )
+            completed = eval_run_repository.get(eval_run.id)
+            if completed is None:
+                raise_eval_run_not_found()
 
-        completed = eval_run_repository.get(eval_run.id)
-        if completed is None:
-            raise_eval_run_not_found()
-
-        return to_eval_run_response(completed, eval_run_repository)
+            return to_eval_run_response(completed, eval_run_repository)
+        finally:
+            release_eval_run_execution(eval_run.id)
 
     return router
 
@@ -83,6 +87,23 @@ def increment_execute_request_count(eval_run_id: str) -> None:
                 'message': 'Eval run execute request limit exceeded.',
             },
         )
+
+
+def acquire_eval_run_execution(eval_run_id: str) -> None:
+    if eval_run_id in _active_eval_run_ids:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                'error': 'eval_run_already_executing',
+                'message': 'Eval run is already executing.',
+            },
+        )
+
+    _active_eval_run_ids.add(eval_run_id)
+
+
+def release_eval_run_execution(eval_run_id: str) -> None:
+    _active_eval_run_ids.discard(eval_run_id)
 
 
 def select_test_cases_for_execution(
