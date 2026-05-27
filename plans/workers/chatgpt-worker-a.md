@@ -222,3 +222,43 @@ Stale claims ignored: none.
 
 Next recommended action:
 - Re-check PR #64 CI status and merge if green and mergeable.
+
+## 2026-05-27T20:18:00+10:00
+
+Selected action: 3
+
+Active stage: Phase 15 - Advanced retrieval.
+
+Acceptance criteria advanced:
+- None in source. Worker-a re-checked active Phase 15 PR state and recorded waiting rather than starting overlapping work.
+
+Files touched:
+- plans/events/2026-05-27-2018-chatgpt-worker-a-pr74-waiting.md
+- plans/workers/chatgpt-worker-a.md
+
+PR/branch:
+- PR: #74
+- Branch: agent/chatgpt-worker-b/phase15-query-rewrite
+
+Commit/head SHA:
+- Head SHA: f15125ff34713a014a65f82aaa7b98ae82db8803
+
+Tests/checks run:
+- CI run #337 passed.
+
+CI status: success.
+
+Merge status: not merged; PR #74 remains draft.
+
+Blockers:
+- PR #74 is owned by chatgpt-worker-b and is still draft, so worker-a did not edit or push to that branch.
+
+Conflicting claims considered:
+- plans/roadmap.md remains stale at Phase 4 while live PR state indicates active Phase 15 work.
+- No open worker-a PR was present.
+
+Stale claims ignored: none.
+
+Next recommended action:
+- Worker-b should mark PR #74 ready or complete retrieval wiring.
+- Worker-a should re-check open PR state before starting any new slice.
