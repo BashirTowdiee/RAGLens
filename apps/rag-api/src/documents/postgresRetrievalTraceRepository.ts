@@ -3,7 +3,8 @@ import type { Pool } from 'pg';
 import type {
   CreateRetrievalTraceInput,
   RetrievalTraceChunk,
-  RetrievalTraceRecord
+  RetrievalTraceRecord,
+  RetrievalMode
 } from './types.js';
 import type { RetrievalTraceRepository } from './retrievalTraceRepository.js';
 
@@ -11,6 +12,7 @@ type RetrievalTraceRow = {
   id: string;
   query: string;
   limit_value: number;
+  retrieval_mode: RetrievalMode;
   result_count: number;
   duration_ms: number;
   chunks: RetrievalTraceChunk[];
@@ -37,12 +39,21 @@ export class PostgresRetrievalTraceRepository implements RetrievalTraceRepositor
         id,
         query,
         limit_value,
+        retrieval_mode,
         result_count,
         duration_ms,
         chunks
-      ) VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING id, query, limit_value, result_count, duration_ms, chunks, created_at`,
-      [randomUUID(), input.query, input.limit, chunks.length, input.durationMs, JSON.stringify(chunks)]
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id, query, limit_value, retrieval_mode, result_count, duration_ms, chunks, created_at`,
+      [
+        randomUUID(),
+        input.query,
+        input.limit,
+        input.retrievalMode,
+        chunks.length,
+        input.durationMs,
+        JSON.stringify(chunks)
+      ]
     );
 
     return mapRetrievalTraceRow(result.rows[0]);
@@ -50,7 +61,7 @@ export class PostgresRetrievalTraceRepository implements RetrievalTraceRepositor
 
   async get(traceId: string): Promise<RetrievalTraceRecord | null> {
     const result = await this.pool.query<RetrievalTraceRow>(
-      'SELECT id, query, limit_value, result_count, duration_ms, chunks, created_at FROM rag.retrieval_traces WHERE id = $1',
+      'SELECT id, query, limit_value, retrieval_mode, result_count, duration_ms, chunks, created_at FROM rag.retrieval_traces WHERE id = $1',
       [traceId]
     );
 
@@ -63,6 +74,7 @@ function mapRetrievalTraceRow(row: RetrievalTraceRow): RetrievalTraceRecord {
     id: row.id,
     query: row.query,
     limit: row.limit_value,
+    retrievalMode: row.retrieval_mode,
     resultCount: row.result_count,
     durationMs: row.duration_ms,
     chunks: row.chunks,
