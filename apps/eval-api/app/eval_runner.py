@@ -40,7 +40,7 @@ def create_eval_runner_router(
                 },
             )
 
-        selected_test_cases = test_cases[:max_cases] if max_cases is not None else test_cases
+        selected_test_cases = select_test_cases_for_execution(test_cases, max_cases)
         for test_case in selected_test_cases:
             run_test_case(
                 eval_run_repository,
@@ -57,6 +57,17 @@ def create_eval_runner_router(
         return to_eval_run_response(completed, eval_run_repository)
 
     return router
+
+
+def select_test_cases_for_execution(
+    test_cases: list[TestCaseRecord],
+    max_cases: int | None,
+) -> list[TestCaseRecord]:
+    if max_cases is None:
+        return test_cases
+
+    stable_ordered_cases = sorted(test_cases, key=lambda test_case: test_case.created_at)
+    return stable_ordered_cases[:max_cases]
 
 
 def run_test_case(
