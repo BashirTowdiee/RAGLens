@@ -67,7 +67,19 @@ export type RetrievalTraceResult =
   | { ok: false; error: string };
 
 export function getRagApiBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_RAG_API_BASE_URL ?? 'http://localhost:8000';
+  return (
+    process.env.RAG_API_BASE_URL ??
+    process.env.NEXT_PUBLIC_RAG_API_BASE_URL ??
+    'http://localhost:8000'
+  );
+}
+
+export function getRagApiDisplayBaseUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_RAG_API_BASE_URL ??
+    process.env.RAG_API_BASE_URL ??
+    'http://localhost:8000'
+  );
 }
 
 export async function fetchDocuments(): Promise<DocumentsResult> {

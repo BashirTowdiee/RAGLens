@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { fetchDocuments, getRagApiBaseUrl } from '../lib/ragApi';
+import { fetchDocuments, getRagApiDisplayBaseUrl } from '../lib/ragApi';
 
 export default async function DocumentsPage() {
   const result = await fetchDocuments();
@@ -17,7 +17,7 @@ export default async function DocumentsPage() {
       </h1>
       <p style={{ fontSize: '18px', color: '#475569', lineHeight: 1.6 }}>
         Inspect indexed documents and drill into generated chunks. Data is loaded from{' '}
-        <code>{getRagApiBaseUrl()}/api/v1/documents</code>.
+        <code>{getRagApiDisplayBaseUrl()}/api/v1/documents</code>.
       </p>
 
       {!result.ok ? (

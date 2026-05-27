@@ -127,7 +127,19 @@ export type ComparisonResult =
   | { ok: false; error: string };
 
 export function getEvalApiBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_EVAL_API_BASE_URL ?? 'http://localhost:8001';
+  return (
+    process.env.EVAL_API_BASE_URL ??
+    process.env.NEXT_PUBLIC_EVAL_API_BASE_URL ??
+    'http://localhost:8001'
+  );
+}
+
+export function getEvalApiDisplayBaseUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_EVAL_API_BASE_URL ??
+    process.env.EVAL_API_BASE_URL ??
+    'http://localhost:8001'
+  );
 }
 
 export async function fetchEvalRuns(): Promise<EvalRunsResult> {

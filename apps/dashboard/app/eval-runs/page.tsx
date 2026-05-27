@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { createComparison, fetchEvalRuns, getEvalApiBaseUrl } from '../lib/evalApi';
+import { createComparison, fetchEvalRuns, getEvalApiDisplayBaseUrl } from '../lib/evalApi';
 
 function formatPercent(value: number): string {
   return `${Math.round(value * 100)}%`;
@@ -46,7 +46,7 @@ export default async function EvalRunsPage({ searchParams }: EvalRunsPageProps) 
       </h1>
       <p style={{ fontSize: '18px', color: '#475569', lineHeight: 1.6 }}>
         Inspect run status, pass rate, case counts, and failure type rollups from{' '}
-        <code>{getEvalApiBaseUrl()}/api/v1/eval-runs</code>.
+        <code>{getEvalApiDisplayBaseUrl()}/api/v1/eval-runs</code>.
       </p>
 
       {!result.ok ? (

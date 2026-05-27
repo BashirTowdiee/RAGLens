@@ -1,15 +1,17 @@
 import Link from 'next/link';
+import { getEvalApiDisplayBaseUrl } from './lib/evalApi';
+import { getRagApiDisplayBaseUrl } from './lib/ragApi';
 
 const services = [
   {
     name: 'rag-api',
     description: 'Answers questions, stores query traces, and owns document ingestion.',
-    href: process.env.NEXT_PUBLIC_RAG_API_BASE_URL ?? 'http://localhost:8000'
+    href: getRagApiDisplayBaseUrl()
   },
   {
     name: 'eval-api',
     description: 'Runs datasets, scores RAG quality, and reports regressions.',
-    href: process.env.NEXT_PUBLIC_EVAL_API_BASE_URL ?? 'http://localhost:8001'
+    href: getEvalApiDisplayBaseUrl()
   }
 ];
 

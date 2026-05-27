@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { fetchRetrievalResults, getRagApiBaseUrl } from '../lib/ragApi';
+import { fetchRetrievalResults, getRagApiDisplayBaseUrl } from '../lib/ragApi';
 
 type RetrievalPageProps = {
   searchParams: Promise<{ q?: string; limit?: string }>;
@@ -23,7 +23,7 @@ export default async function RetrievalPage({ searchParams }: RetrievalPageProps
         Inspect ranked chunks
       </h1>
       <p style={{ fontSize: '18px', color: '#475569', lineHeight: 1.6 }}>
-        Run a retrieval-only query against <code>{getRagApiBaseUrl()}/api/v1/documents/search</code> and inspect the ranked source chunks before answer generation exists.
+        Run a retrieval-only query against <code>{getRagApiDisplayBaseUrl()}/api/v1/documents/search</code> and inspect the ranked source chunks before answer generation exists.
       </p>
 
       <form className="retrieval-form" action="/retrieval">

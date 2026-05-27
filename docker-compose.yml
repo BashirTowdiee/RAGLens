@@ -52,6 +52,8 @@ services:
       context: ./apps/dashboard
     container_name: raglens-dashboard
     environment:
+      RAG_API_BASE_URL: http://rag-api:8000
+      EVAL_API_BASE_URL: http://eval-api:8001
       NEXT_PUBLIC_RAG_API_BASE_URL: http://localhost:8000
       NEXT_PUBLIC_EVAL_API_BASE_URL: http://localhost:8001
     ports:
