@@ -153,16 +153,28 @@ type ScoreChunkInput = {
   embeddingProvider: EmbeddingProvider;
 };
 
-function scoreChunkForMode(input: ScoreChunkInput): number {
+export function scoreChunkForMode(input: ScoreChunkInput): number {
+  const keyword = keywordScore(input.query, input.chunk.content);
+
   if (input.mode === 'keyword') {
-    return keywordScore(input.query, input.chunk.content);
+    return keyword;
   }
 
-  if (!input.embedding) {
-    return 0;
+  const vector = input.embedding
+    ? cosineSimilarity(input.embeddingProvider.embedText(input.query), input.embedding)
+    : 0;
+
+  if (input.mode === 'hybrid') {
+    return hybridScore(vector, keyword);
   }
 
-  return cosineSimilarity(input.embeddingProvider.embedText(input.query), input.embedding);
+  return vector;
+}
+
+export function hybridScore(vectorScore: number, keywordScoreValue: number): number {
+  const safeVectorScore = Math.max(vectorScore, 0);
+  const safeKeywordScore = Math.max(keywordScoreValue, 0);
+  return safeVectorScore * 0.7 + safeKeywordScore * 0.3;
 }
 
 export function keywordScore(query: string, content: string): number {
