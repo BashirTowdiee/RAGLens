@@ -4,8 +4,12 @@ import {
   hybridScore,
   keywordScore,
   metadataMatches,
+  rerankedScore,
+  rerankScore,
   retrievalMetadataFor
 } from './documentRepository.js';
+
+const scoreWeightTolerance = 8;
 
 describe('keywordScore', () => {
   it('scores lexical matches as a fraction of query terms', () => {
@@ -20,6 +24,30 @@ describe('hybridScore', () => {
     expect(hybridScore(1, 0)).toBeCloseTo(0.7);
     expect(hybridScore(0, 1)).toBeCloseTo(0.3);
     expect(hybridScore(0.5, 0.5)).toBeCloseTo(0.5);
+  });
+});
+
+describe('rerankScore', () => {
+  it('prioritises heading matches while retaining content matches', () => {
+    expect(
+      rerankScore('remote work', {
+        headingPath: ['Remote Work'],
+        content: 'Equipment setup applies to laptops.'
+      })
+    ).toBeGreaterThan(
+      rerankScore('remote work', {
+        headingPath: ['Equipment'],
+        content: 'Remote work applies to eligible employees.'
+      })
+    );
+  });
+});
+
+describe('rerankedScore', () => {
+  it('combines original and rerank scores with stable weights', () => {
+    expect(rerankedScore(1, 0)).toBeCloseTo(0.6);
+    expect(rerankedScore(0, 1)).toBeCloseTo(0.4);
+    expect(rerankedScore(0.5, 0.5)).toBeCloseTo(0.5);
   });
 });
 
@@ -130,6 +158,37 @@ describe('InMemoryDocumentRepository hybrid retrieval', () => {
     expect(hybridResults[0].score).toBeGreaterThan(keywordResults[0].score * 0.3);
     expect(hybridResults.map((result) => result.document.sourceId)).toEqual(
       expect.arrayContaining(['remote-guide', 'equipment-guide'])
+    );
+  });
+
+  it('returns original and rerank scores for hybrid reranked retrieval', async () => {
+    const repository = new InMemoryDocumentRepository();
+    await repository.ingest({
+      sourceId: 'remote-guide',
+      title: 'Remote Guide',
+      sourceType: 'markdown',
+      content: '# Remote Guide\n\n## Remote Work\n\nEligible employees can use the remote work policy.'
+    });
+    await repository.ingest({
+      sourceId: 'equipment-guide',
+      title: 'Equipment Guide',
+      sourceType: 'markdown',
+      content: '# Equipment Guide\n\n## Devices\n\nEmployees receive laptops and monitors.'
+    });
+
+    const results = await repository.searchChunks({
+      query: 'remote work',
+      mode: 'hybrid_reranked',
+      limit: 5
+    });
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].document.sourceId).toBe('remote-guide');
+    expect(results[0].originalScore).toBeDefined();
+    expect(results[0].rerankScore).toBeDefined();
+    expect(results[0].score).toBeCloseTo(
+      rerankedScore(results[0].originalScore ?? 0, results[0].rerankScore ?? 0),
+      scoreWeightTolerance
     );
   });
 });
