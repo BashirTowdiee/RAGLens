@@ -1,6 +1,6 @@
 export type DocumentStatus = 'indexed';
 
-export type RetrievalMode = 'vector' | 'keyword' | 'hybrid';
+export type RetrievalMode = 'vector' | 'keyword' | 'hybrid' | 'hybrid_reranked';
 
 export type MetadataFilterValue = string | number | boolean;
 
@@ -34,6 +34,8 @@ export type DocumentChunkRecord = {
 
 export type RetrievedChunkRecord = DocumentChunkRecord & {
   score: number;
+  originalScore?: number;
+  rerankScore?: number;
   document: Pick<DocumentRecord, 'id' | 'sourceId' | 'title' | 'sourceUri' | 'version'>;
 };
 
@@ -44,6 +46,8 @@ export type RetrievalTraceChunk = {
   sourceId: string;
   title: string;
   score: number;
+  originalScore?: number;
+  rerankScore?: number;
   chunkIndex: number;
   headingPath: string[];
 };

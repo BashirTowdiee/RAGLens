@@ -24,6 +24,8 @@ export type QueryCitation = {
   headingPath: string[];
   rank: number;
   score: number;
+  originalScore?: number;
+  rerankScore?: number;
 };
 
 export type QueryResult = {
@@ -190,6 +192,8 @@ function createCitations(chunks: RetrievedChunkRecord[]): QueryCitation[] {
     title: chunk.document.title,
     headingPath: chunk.headingPath,
     rank: index + 1,
-    score: chunk.score
+    score: chunk.score,
+    originalScore: chunk.originalScore,
+    rerankScore: chunk.rerankScore
   }));
 }
