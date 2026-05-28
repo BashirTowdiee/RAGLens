@@ -1,0 +1,136 @@
+version: 1
+project:
+  name: raglens
+  purpose: >
+    RAG evaluation and observability platform where rag-api answers questions,
+    eval-api evaluates answers, and dashboard explains runtime behaviour.
+
+roots:
+  - path: README.md
+    purpose: Primary project overview and local setup.
+  - path: AGENTS.md
+    purpose: Root operating rules for coding agents.
+  - path: package.json
+    purpose: Workspace and top-level commands.
+  - path: docker-compose.yml
+    purpose: Local multi-service runtime wiring.
+  - path: .github/workflows/ci.yml
+    purpose: CI expectations and required checks.
+
+apps:
+  - id: rag-api
+    path: apps/rag-api
+    stack: TypeScript, Fastify, Vitest, Zod, pg
+    purpose: Ingestion, chunking, retrieval, query answering, citations, traces.
+    public_entry_points:
+      - apps/rag-api/src/server.ts
+      - apps/rag-api/src/routes.ts
+      - apps/rag-api/src/query/routes.ts
+      - apps/rag-api/src/documents/routes.ts
+    important_files:
+      - apps/rag-api/src/app.ts
+      - apps/rag-api/src/config.ts
+      - apps/rag-api/src/query/queryService.ts
+      - apps/rag-api/src/documents/postgresDocumentRepository.ts
+    tests:
+      - apps/rag-api/src/**/*.test.ts
+      - apps/rag-api/src/**/*.integration.test.ts
+    commands:
+      - npm --workspace apps/rag-api run dev
+      - npm --workspace apps/rag-api run build
+      - npm --workspace apps/rag-api run typecheck
+      - npm --workspace apps/rag-api run lint
+      - npm --workspace apps/rag-api run test
+      - npm --workspace apps/rag-api run seed:documents
+
+  - id: eval-api
+    path: apps/eval-api
+    stack: Python 3.12, FastAPI, pytest, ruff
+    purpose: Datasets, eval runs, scoring, judgement, CI quality gate.
+    public_entry_points:
+      - apps/eval-api/app/main.py
+      - apps/eval-api/app/scoring_router.py
+    important_files:
+      - apps/eval-api/app/eval_runner.py
+      - apps/eval-api/app/rag_client.py
+      - apps/eval-api/app/ci_gate.py
+      - apps/eval-api/pyproject.toml
+    tests:
+      - apps/eval-api/tests/test_*.py
+    commands:
+      - cd apps/eval-api && python -m pytest
+      - cd apps/eval-api && ruff check .
+      - cd apps/eval-api && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+
+  - id: dashboard
+    path: apps/dashboard
+    stack: Next.js, React, TypeScript
+    purpose: UI for documents, retrieval, traces, and eval runs.
+    public_entry_points:
+      - apps/dashboard/app/layout.tsx
+      - apps/dashboard/app/page.tsx
+      - apps/dashboard/app/documents/page.tsx
+      - apps/dashboard/app/retrieval/page.tsx
+      - apps/dashboard/app/eval-runs/page.tsx
+    important_files:
+      - apps/dashboard/app/lib/ragApi.ts
+      - apps/dashboard/app/lib/evalApi.ts
+      - apps/dashboard/next.config.mjs
+    tests:
+      - none_currently_detected
+    commands:
+      - npm --workspace apps/dashboard run dev
+      - npm --workspace apps/dashboard run build
+      - npm --workspace apps/dashboard run typecheck
+      - npm --workspace apps/dashboard run lint
+
+packages:
+  - id: shared
+    path: packages/shared
+    purpose: Shared contracts/components safe for reuse across TypeScript workspaces.
+    important_files:
+      - packages/shared/README.md
+
+docs:
+  - id: docs
+    path: docs
+    purpose: Source-of-truth product and engineering documentation.
+  - id: docs-site
+    path: docs-site
+    purpose: Astro site rendering docs from ../docs.
+    public_entry_points:
+      - docs-site/src/pages/index.astro
+      - docs-site/src/pages/docs/[slug].astro
+      - docs-site/src/content.config.ts
+    commands:
+      - npm run docs:dev
+      - npm run docs:check
+      - npm run docs:build
+
+infra:
+  - path: infra/migrations
+    purpose: Ordered SQL migrations for rag.* and eval.* schemas.
+    important_files:
+      - infra/migrations/001_init.sql
+      - infra/migrations/014_ci_gate_persistence.sql
+  - path: infra/seed
+    purpose: Seed documents and evaluation datasets.
+    important_files:
+      - infra/seed/documents/README.md
+      - infra/seed/datasets/company-kb-eval-v1.json
+
+repo_commands:
+  - npm run dev
+  - npm run typecheck
+  - npm run lint
+  - npm run test
+  - npm run build
+  - npm run docs:dev
+  - npm run docs:check
+  - npm run docs:build
+  - docker compose up --build
+
+boundaries:
+  - eval-api calls rag-api over HTTP; do not import rag-api internals in eval-api.
+  - dashboard consumes API responses; do not move backend scoring/retrieval logic into UI.
+  - docs/ is source of truth for product and architecture decisions.
