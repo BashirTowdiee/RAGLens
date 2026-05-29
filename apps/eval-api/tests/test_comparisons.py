@@ -182,10 +182,12 @@ def test_comparison_rejects_dataset_mismatch() -> None:
     )
 
     assert response.status_code == 400
-    assert response.json()['detail'] == {
-        'error': 'dataset_mismatch',
-        'message': 'Baseline and candidate eval runs must use the same dataset.',
-    }
+    assert response.json()['detail']['error'] == 'dataset_mismatch'
+    assert (
+        response.json()['detail']['message']
+        == 'Baseline and candidate eval runs must use the same dataset.'
+    )
+    assert response.json()['detail']['requestId']
 
 
 def test_comparison_returns_not_found_for_missing_run() -> None:
@@ -200,17 +202,18 @@ def test_comparison_returns_not_found_for_missing_run() -> None:
     )
 
     assert response.status_code == 404
-    assert response.json()['detail'] == {
-        'error': 'eval_run_not_found',
-        'message': 'Baseline or candidate eval run was not found.',
-    }
+    assert response.json()['detail']['error'] == 'eval_run_not_found'
+    assert (
+        response.json()['detail']['message']
+        == 'Baseline or candidate eval run was not found.'
+    )
+    assert response.json()['detail']['requestId']
 
 
 def test_returns_not_found_for_missing_comparison() -> None:
     response = client.get('/api/v1/comparisons/missing-comparison')
 
     assert response.status_code == 404
-    assert response.json()['detail'] == {
-        'error': 'comparison_not_found',
-        'message': 'Eval run comparison was not found.',
-    }
+    assert response.json()['detail']['error'] == 'comparison_not_found'
+    assert response.json()['detail']['message'] == 'Eval run comparison was not found.'
+    assert response.json()['detail']['requestId']

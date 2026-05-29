@@ -52,10 +52,9 @@ def test_eval_api_adds_request_id_header_to_error_responses() -> None:
 
     assert response.status_code == 404
     assert response.headers[REQUEST_ID_HEADER]
-    assert response.json()['detail'] == {
-        'error': 'ci_gate_result_not_found',
-        'message': 'CI gate result was not found.',
-    }
+    assert response.json()['detail']['error'] == 'ci_gate_result_not_found'
+    assert response.json()['detail']['message'] == 'CI gate result was not found.'
+    assert response.json()['detail']['requestId']
 
 
 def test_eval_api_logs_structured_request_context(caplog) -> None:

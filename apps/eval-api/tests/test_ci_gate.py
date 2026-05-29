@@ -216,17 +216,15 @@ def test_ci_gate_returns_not_found_for_missing_eval_run() -> None:
     )
 
     assert response.status_code == 404
-    assert response.json()['detail'] == {
-        'error': 'eval_run_not_found',
-        'message': 'Eval run was not found.',
-    }
+    assert response.json()['detail']['error'] == 'eval_run_not_found'
+    assert response.json()['detail']['message'] == 'Eval run was not found.'
+    assert response.json()['detail']['requestId']
 
 
 def test_ci_gate_result_lookup_returns_not_found_for_missing_result() -> None:
     response = client.get('/api/v1/ci/gate-results/missing-result')
 
     assert response.status_code == 404
-    assert response.json()['detail'] == {
-        'error': 'ci_gate_result_not_found',
-        'message': 'CI gate result was not found.',
-    }
+    assert response.json()['detail']['error'] == 'ci_gate_result_not_found'
+    assert response.json()['detail']['message'] == 'CI gate result was not found.'
+    assert response.json()['detail']['requestId']

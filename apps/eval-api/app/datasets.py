@@ -5,6 +5,9 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, status
+from psycopg import Connection
+from psycopg.errors import UniqueViolation
+from psycopg.rows import dict_row
 from pydantic import BaseModel, Field
 
 
@@ -168,6 +171,128 @@ class InMemoryDatasetRepository(DatasetRepository):
         return test_case
 
 
+class PostgresDatasetRepository(DatasetRepository):
+    def __init__(self, database_url: str) -> None:
+        self._database_url = database_url
+
+    def create(self, request: CreateDatasetRequest) -> DatasetRecord:
+        dataset_id = str(uuid4())
+        try:
+            with self._connect() as connection:
+                row = connection.execute(
+                    """
+                    INSERT INTO eval.datasets (id, name, version, description)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING id, name, version, description, status, created_at
+                    """,
+                    (
+                        dataset_id,
+                        request.name.strip(),
+                        request.version.strip(),
+                        request.description.strip(),
+                    ),
+                ).fetchone()
+        except UniqueViolation as exc:
+            raise DuplicateDatasetError from exc
+
+        if row is None:
+            raise RuntimeError('Failed to create dataset.')
+
+        return map_dataset_row(row)
+
+    def list(self) -> list[DatasetRecord]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, name, version, description, status, created_at
+                FROM eval.datasets
+                ORDER BY created_at DESC
+                """
+            ).fetchall()
+
+        return [map_dataset_row(row) for row in rows]
+
+    def get(self, dataset_id: str) -> DatasetRecord | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT id, name, version, description, status, created_at
+                FROM eval.datasets
+                WHERE id = %s
+                """,
+                (dataset_id,),
+            ).fetchone()
+
+        return map_dataset_row(row) if row else None
+
+    def create_test_case(
+        self,
+        dataset_id: str,
+        request: CreateTestCaseRequest,
+    ) -> TestCaseRecord | None:
+        if not self.get(dataset_id):
+            return None
+
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                INSERT INTO eval.test_cases (
+                  id,
+                  dataset_id,
+                  question,
+                  expected_answer,
+                  reference_citations
+                )
+                VALUES (%s, %s, %s, %s, %s::jsonb)
+                RETURNING id, dataset_id, question, expected_answer, reference_citations, created_at
+                """,
+                (
+                    str(uuid4()),
+                    dataset_id,
+                    request.question.strip(),
+                    request.expected_answer.strip(),
+                    [citation.strip() for citation in request.reference_citations],
+                ),
+            ).fetchone()
+
+        return map_test_case_row(row) if row else None
+
+    def list_test_cases(self, dataset_id: str) -> list[TestCaseRecord] | None:
+        if not self.get(dataset_id):
+            return None
+
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, dataset_id, question, expected_answer, reference_citations, created_at
+                FROM eval.test_cases
+                WHERE dataset_id = %s
+                ORDER BY created_at DESC
+                """,
+                (dataset_id,),
+            ).fetchall()
+
+        return [map_test_case_row(row) for row in rows]
+
+    def get_test_case(self, dataset_id: str, test_case_id: str) -> TestCaseRecord | None:
+        if not self.get(dataset_id):
+            return None
+
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT id, dataset_id, question, expected_answer, reference_citations, created_at
+                FROM eval.test_cases
+                WHERE dataset_id = %s AND id = %s
+                """,
+                (dataset_id, test_case_id),
+            ).fetchone()
+
+        return map_test_case_row(row) if row else None
+
+    def _connect(self) -> Connection:
+        return Connection.connect(self._database_url, row_factory=dict_row)
+
 def create_dataset_router(repository: DatasetRepository) -> APIRouter:
     router = APIRouter(prefix='/api/v1/datasets', tags=['datasets'])
 
@@ -238,6 +363,32 @@ def create_dataset_router(repository: DatasetRepository) -> APIRouter:
         return test_case
 
     return router
+
+
+def map_dataset_row(row: dict) -> DatasetRecord:
+    return DatasetRecord(
+        id=str(row['id']),
+        name=row['name'],
+        version=row['version'],
+        description=row['description'],
+        status=row['status'],
+        created_at=row['created_at'].astimezone(UTC).isoformat(),
+    )
+
+
+def map_test_case_row(row: dict) -> TestCaseRecord:
+    reference_citations = row.get('reference_citations', [])
+    if not isinstance(reference_citations, list):
+        reference_citations = []
+
+    return TestCaseRecord(
+        id=str(row['id']),
+        dataset_id=str(row['dataset_id']),
+        question=row['question'],
+        expected_answer=row['expected_answer'],
+        reference_citations=[str(citation) for citation in reference_citations if str(citation)],
+        created_at=row['created_at'].astimezone(UTC).isoformat(),
+    )
 
 
 def raise_dataset_not_found() -> None:

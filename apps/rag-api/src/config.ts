@@ -4,7 +4,8 @@ const ConfigSchema = z.object({
   NODE_ENV: z.string().default('development'),
   PORT: z.coerce.number().int().positive().default(8000),
   DATABASE_URL: z.string().default('postgres://raglens:raglens@localhost:5432/raglens'),
-  DOCUMENT_REPOSITORY: z.enum(['memory', 'postgres']).default('postgres')
+  DOCUMENT_REPOSITORY: z.enum(['memory', 'postgres']).default('postgres'),
+  ANSWER_PROVIDER_TIMEOUT_MS: z.coerce.number().int().positive().default(10000)
 });
 
 export type AppConfig = z.infer<typeof ConfigSchema>;

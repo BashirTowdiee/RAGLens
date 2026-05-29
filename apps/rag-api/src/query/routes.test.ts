@@ -294,6 +294,9 @@ describe('query routes', () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/query',
+      headers: {
+        'x-request-id': 'request-invalid'
+      },
       payload: {
         question: '',
         topK: 0
@@ -301,6 +304,8 @@ describe('query routes', () => {
     });
 
     expect(response.statusCode).toBe(400);
+    expect(response.headers['x-request-id']).toBe('request-invalid');
     expect(response.json().error).toBe('invalid_query_payload');
+    expect(response.json().requestId).toBe('request-invalid');
   });
 });

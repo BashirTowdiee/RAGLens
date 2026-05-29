@@ -54,6 +54,8 @@ apps:
       - apps/eval-api/app/eval_runner.py
       - apps/eval-api/app/rag_client.py
       - apps/eval-api/app/ci_gate.py
+      - apps/eval-api/app/comparisons.py
+      - apps/eval-api/app/main.py
       - apps/eval-api/pyproject.toml
     tests:
       - apps/eval-api/tests/test_*.py
@@ -113,6 +115,7 @@ infra:
     important_files:
       - infra/migrations/001_init.sql
       - infra/migrations/014_ci_gate_persistence.sql
+      - infra/migrations/016_eval_phase14_hardening.sql
   - path: infra/seed
     purpose: Seed documents and evaluation datasets.
     important_files:

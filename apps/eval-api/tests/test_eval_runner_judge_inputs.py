@@ -5,7 +5,13 @@ from app.rag_client import RagApiClient, RagQueryResult
 
 
 class MatchingRagClient(RagApiClient):
-    def query(self, question: str, rag_config_id: str) -> RagQueryResult:
+    def query(
+        self,
+        question: str,
+        rag_config_id: str,
+        request_id: str | None = None,
+    ) -> RagQueryResult:
+        del question, rag_config_id, request_id
         return RagQueryResult(
             trace_id='trace-one',
             answer='Alpha answer.',

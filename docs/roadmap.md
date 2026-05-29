@@ -960,6 +960,13 @@ Goal:
 Make the system more resilient and operationally realistic.
 ```
 
+Implementation status:
+
+```text
+Completed in-repo during the Phase 14 reliability + persistence hardening pass.
+Remaining roadmap work starts at Phase 15.
+```
+
 Build:
 
 ```text

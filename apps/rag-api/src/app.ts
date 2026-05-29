@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import Fastify from 'fastify';
 import type { AppConfig } from './config.js';
 import { InMemoryDocumentRepository } from './documents/documentRepository.js';
@@ -13,7 +14,28 @@ import { QueryService } from './query/queryService.js';
 import { InMemoryQueryTraceRepository } from './query/queryTraceRepository.js';
 import { registerQueryRoutes } from './query/routes.js';
 
-export function buildApp(config: AppConfig) {
+export const REQUEST_ID_HEADER = 'x-request-id';
+export const MAX_REQUEST_ID_LENGTH = 128;
+
+type RuntimeConfig = Omit<AppConfig, 'ANSWER_PROVIDER_TIMEOUT_MS'> & {
+  ANSWER_PROVIDER_TIMEOUT_MS?: number;
+};
+
+function resolveRequestId(input: string | string[] | undefined): string {
+  const rawValue = Array.isArray(input) ? input[0] : input;
+  if (!rawValue) {
+    return randomUUID();
+  }
+
+  const requestId = rawValue.trim();
+  if (!requestId || requestId.length > MAX_REQUEST_ID_LENGTH) {
+    return randomUUID();
+  }
+
+  return requestId;
+}
+
+export function buildApp(config: RuntimeConfig) {
   const app = Fastify({
     logger: config.NODE_ENV !== 'test'
   });
@@ -31,8 +53,17 @@ export function buildApp(config: AppConfig) {
   const queryService = new QueryService(
     documentRepository,
     retrievalTraceRepository,
-    queryTraceRepository
+    queryTraceRepository,
+    undefined,
+    config.ANSWER_PROVIDER_TIMEOUT_MS ?? 10000
   );
+
+  app.decorateRequest('requestId', '');
+  app.addHook('onRequest', async (request, reply) => {
+    const requestId = resolveRequestId(request.headers[REQUEST_ID_HEADER]);
+    request.requestId = requestId;
+    reply.header(REQUEST_ID_HEADER, requestId);
+  });
 
   app.get('/api/v1/health', async () => ({
     status: 'ok',
@@ -46,4 +77,10 @@ export function buildApp(config: AppConfig) {
   });
 
   return app;
+}
+
+declare module 'fastify' {
+  interface FastifyRequest {
+    requestId: string;
+  }
 }

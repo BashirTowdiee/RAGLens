@@ -38,6 +38,7 @@ def make_case_result(
         ),
         judge=judge,
         judge_error=judge_error,
+        request_id='request-1',
         created_at='2026-05-25T12:30:00+00:00',
     )
 

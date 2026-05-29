@@ -50,6 +50,9 @@ describe('query provider error handling', () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/query',
+      headers: {
+        'x-request-id': 'request-123'
+      },
       payload: {
         question: 'How are provider failures returned?'
       }
@@ -63,7 +66,8 @@ describe('query provider error handling', () => {
       message: 'The answer provider timed out.',
       provider: 'test-provider',
       retryable: true,
-      traceId: expect.any(String)
+      traceId: expect.any(String),
+      requestId: 'request-123'
     });
 
     const traceResponse = await app.inject({

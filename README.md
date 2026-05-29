@@ -35,8 +35,12 @@ The current implementation provides:
 
 - `rag-api` health endpoint at `GET /api/v1/health`
 - `eval-api` health endpoint at `GET /api/v1/health`
-- `rag-api` Markdown document ingestion and chunk inspection endpoints
+- `rag-api` Markdown document ingestion, retrieval, query, and trace endpoints
+- `rag-api` request correlation and structured provider-failure envelopes with `x-request-id`
 - Postgres-backed document storage with `rag.documents` and `rag.document_chunks`
+- Postgres-backed eval persistence for datasets, eval runs, case results, comparisons, and CI gate runs
+- `eval-api` request correlation and structured error envelopes with `x-request-id`
+- eval runner retries, timeout mapping, cost/max-case guardrails, and partial failure persistence
 - seed corpus and golden eval fixture under `infra/seed`
 - dashboard document list/detail screens for corpus inspection
 - PostgreSQL + pgvector via Docker Compose

@@ -53,6 +53,9 @@ jobs:
   python:
     name: Eval API
     runs-on: ubuntu-latest
+    env:
+      EVAL_REPOSITORY: memory
+      RAG_CLIENT_MODE: stub
     steps:
       - name: Checkout
         uses: actions/checkout@v4

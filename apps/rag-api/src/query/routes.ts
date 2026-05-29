@@ -17,28 +17,53 @@ export async function registerQueryRoutes(
   queryTraceRepository: QueryTraceRepository
 ) {
   app.post('/api/v1/query', async (request, reply) => {
+    const requestId = resolveRequestId(request);
     const parseResult = QueryRequestSchema.safeParse(request.body);
 
     if (!parseResult.success) {
       return reply.status(400).send({
         error: 'invalid_query_payload',
         message: 'Query payload is invalid.',
+        requestId,
         issues: parseResult.error.issues
       });
     }
 
     try {
       const result = await queryService.answer(parseResult.data);
+      request.log.info({
+        requestId,
+        traceId: result.traceId,
+        retrievalMode: parseResult.data.retrievalMode ?? 'vector',
+        provider: result.usage.provider,
+        model: result.usage.model,
+        latencyMs: result.latencyMs,
+        status: 'succeeded'
+      }, 'rag_query_completed');
       return reply.status(200).send(result);
     } catch (error) {
       if (error instanceof QueryProviderFailure) {
+        request.log.warn(
+          {
+            requestId,
+            traceId: error.traceId,
+            retrievalMode: parseResult.data.retrievalMode ?? 'vector',
+            provider: error.providerError.provider,
+            model: 'unknown',
+            latencyMs: null,
+            status: 'failed',
+            providerErrorCode: error.providerError.code
+          },
+          'rag_query_failed'
+        );
         return reply.status(502).send({
           error: 'answer_provider_failed',
           code: error.providerError.code,
           message: error.providerError.message,
           provider: error.providerError.provider,
           retryable: error.providerError.retryable,
-          traceId: error.traceId
+          traceId: error.traceId,
+          requestId
         });
       }
 
@@ -82,6 +107,23 @@ export async function registerQueryRoutes(
 
     return reply.status(200).send({ citations });
   });
+}
+
+function resolveRequestId(request: { requestId?: string; headers: Record<string, unknown> }): string {
+  if (request.requestId && request.requestId.trim().length > 0) {
+    return request.requestId;
+  }
+
+  const header = request.headers['x-request-id'];
+  if (typeof header === 'string' && header.trim().length > 0) {
+    return header.trim();
+  }
+
+  if (Array.isArray(header) && typeof header[0] === 'string' && header[0].trim().length > 0) {
+    return header[0].trim();
+  }
+
+  return '';
 }
 
 function queryTraceNotFound(reply: { status: (statusCode: number) => { send: (payload: unknown) => unknown } }) {

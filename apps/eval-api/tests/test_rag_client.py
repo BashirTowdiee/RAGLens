@@ -1,4 +1,13 @@
-from app.rag_client import CI_DETERMINISTIC_RAG_CONFIG_ID, CI_DETERMINISTIC_SOURCE, StubRagApiClient
+import httpx
+
+from app.rag_client import (
+    CI_DETERMINISTIC_RAG_CONFIG_ID,
+    CI_DETERMINISTIC_SOURCE,
+    HttpRagApiClient,
+    RagProviderError,
+    RagProviderTimeoutError,
+    StubRagApiClient,
+)
 
 
 def test_stub_rag_client_preserves_default_empty_evidence() -> None:
@@ -17,3 +26,64 @@ def test_stub_rag_client_can_return_deterministic_ci_evidence() -> None:
     assert result.retrieved_sources == [CI_DETERMINISTIC_SOURCE]
     assert result.retrieved_context == ['Stub answer for: What is the refund window?']
     assert result.citations == [CI_DETERMINISTIC_SOURCE]
+
+
+def make_client(transport: httpx.BaseTransport) -> HttpRagApiClient:
+    return HttpRagApiClient(
+        base_url='http://rag-api:8000',
+        timeout_seconds=1,
+        client_factory=lambda timeout: httpx.Client(transport=transport, timeout=timeout),
+    )
+
+
+def test_http_rag_client_maps_successful_query_response() -> None:
+    captured_request_headers: dict[str, str] = {}
+
+    transport = httpx.MockTransport(
+        lambda request: (
+            captured_request_headers.update(dict(request.headers)),
+            httpx.Response(
+                200,
+                json={
+                    'answer': 'Refunds are available for 30 days.',
+                    'traceId': 'trace-123',
+                    'latencyMs': 42,
+                    'citations': [{'sourceId': 'refund-policy.md'}],
+                },
+            ),
+        )[1]
+    )
+
+    result = make_client(transport).query(
+        'What is the refund window?',
+        'vector-default',
+        request_id='request-1',
+    )
+
+    assert result.trace_id == 'trace-123'
+    assert result.answer == 'Refunds are available for 30 days.'
+    assert result.latency_ms == 42
+    assert result.retrieved_sources == ['refund-policy.md']
+    assert captured_request_headers.get('x-request-id') == 'request-1'
+
+
+def test_http_rag_client_maps_timeout_to_timeout_error() -> None:
+    transport = httpx.MockTransport(
+        lambda request: (_ for _ in ()).throw(httpx.ReadTimeout('boom'))
+    )
+
+    try:
+        make_client(transport).query('What is the refund window?', 'vector-default')
+        raise AssertionError('Expected RagProviderTimeoutError')
+    except RagProviderTimeoutError:
+        assert True
+
+
+def test_http_rag_client_rejects_invalid_success_payload() -> None:
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json={'answer': 'missing'}))
+
+    try:
+        make_client(transport).query('What is the refund window?', 'vector-default')
+        raise AssertionError('Expected RagProviderError')
+    except RagProviderError as exc:
+        assert exc.category == 'invalid_upstream_response'

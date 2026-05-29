@@ -54,7 +54,9 @@ def test_execute_eval_run_is_rate_limited_per_eval_run() -> None:
     limited_response = client.post(f"/api/v1/eval-runs/{eval_run['id']}/execute")
 
     assert limited_response.status_code == 429
-    assert limited_response.json()['detail'] == {
-        'error': 'eval_run_execute_rate_limited',
-        'message': 'Eval run execute request limit exceeded.',
-    }
+    assert limited_response.json()['detail']['error'] == 'eval_run_execute_rate_limited'
+    assert (
+        limited_response.json()['detail']['message']
+        == 'Eval run execute request limit exceeded.'
+    )
+    assert limited_response.json()['detail']['requestId']

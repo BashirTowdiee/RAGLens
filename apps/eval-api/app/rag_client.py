@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from uuid import uuid4
+
+import httpx
 
 CI_DETERMINISTIC_RAG_CONFIG_ID = 'ci-deterministic'
 CI_DETERMINISTIC_SOURCE = 'ci-smoke.md'
@@ -31,8 +34,15 @@ class RagClientError(Exception):
 
 
 class RagProviderError(RagClientError):
-    def __init__(self, message: str, *, retryable: bool = False) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        retryable: bool = False,
+        category: str = 'upstream_unavailable',
+    ) -> None:
         self.retryable = retryable
+        self.category = category
         super().__init__(message)
 
 
@@ -43,16 +53,27 @@ class RagProviderTimeoutError(RagProviderError):
             message = 'RAG provider request timed out.'
         else:
             message = f'RAG provider request timed out after {timeout_seconds:g}s.'
-        super().__init__(message, retryable=True)
+        super().__init__(message, retryable=True, category='timeout')
 
 
 class RagApiClient:
-    def query(self, question: str, rag_config_id: str) -> RagQueryResult:
+    def query(
+        self,
+        question: str,
+        rag_config_id: str,
+        request_id: str | None = None,
+    ) -> RagQueryResult:
         raise NotImplementedError
 
 
 class StubRagApiClient(RagApiClient):
-    def query(self, question: str, rag_config_id: str) -> RagQueryResult:
+    def query(
+        self,
+        question: str,
+        rag_config_id: str,
+        request_id: str | None = None,
+    ) -> RagQueryResult:
+        del request_id
         answer = f'Stub answer for: {question}'
         if rag_config_id == CI_DETERMINISTIC_RAG_CONFIG_ID:
             return RagQueryResult(
@@ -71,3 +92,117 @@ class StubRagApiClient(RagApiClient):
             latency_ms=0,
             cost_usd=0,
         )
+
+
+class HttpRagApiClient(RagApiClient):
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        timeout_seconds: float = 10,
+        client_factory: Callable[[float], httpx.Client] = httpx.Client,
+    ) -> None:
+        self._base_url = base_url.rstrip('/')
+        self._timeout_seconds = timeout_seconds
+        self._client_factory = client_factory
+
+    def query(
+        self,
+        question: str,
+        rag_config_id: str,
+        request_id: str | None = None,
+    ) -> RagQueryResult:
+        del rag_config_id
+        headers: dict[str, str] = {}
+        if request_id:
+            headers['x-request-id'] = request_id
+
+        try:
+            with self._client_factory(timeout=self._timeout_seconds) as client:
+                response = client.post(
+                    f'{self._base_url}/api/v1/query',
+                    json={'question': question},
+                    headers=headers,
+                )
+        except httpx.TimeoutException as exc:
+            raise RagProviderTimeoutError(self._timeout_seconds) from exc
+        except httpx.HTTPError as exc:
+            raise RagProviderError(
+                'RAG provider is unavailable.',
+                retryable=True,
+                category='upstream_unavailable',
+            ) from exc
+
+        if response.status_code >= 400:
+            body = parse_json_body(response)
+            if isinstance(body, dict):
+                retryable = bool(body.get('retryable', response.status_code >= 500))
+                message = str(body.get('message') or 'RAG provider is unavailable.')
+            else:
+                retryable = response.status_code >= 500
+                message = 'RAG provider is unavailable.'
+
+            raise RagProviderError(
+                message,
+                retryable=retryable,
+                category='upstream_unavailable',
+            )
+
+        body = parse_json_body(response)
+        if not isinstance(body, dict):
+            raise RagProviderError(
+                'RAG provider returned an invalid response.',
+                retryable=False,
+                category='invalid_upstream_response',
+            )
+
+        answer = body.get('answer')
+        trace_id = body.get('traceId')
+        latency_ms = body.get('latencyMs')
+        citations = body.get('citations', [])
+
+        if not isinstance(answer, str) or not isinstance(trace_id, str) or not isinstance(
+            latency_ms, int
+        ):
+            raise RagProviderError(
+                'RAG provider returned an invalid response.',
+                retryable=False,
+                category='invalid_upstream_response',
+            )
+
+        retrieved_sources = citations_to_sources(citations)
+
+        return RagQueryResult(
+            trace_id=trace_id,
+            answer=answer,
+            latency_ms=latency_ms,
+            cost_usd=0,
+            retrieved_sources=retrieved_sources,
+            retrieved_context=[],
+            citations=retrieved_sources,
+        )
+
+
+def parse_json_body(response: httpx.Response) -> object:
+    try:
+        return response.json()
+    except ValueError:
+        return None
+
+
+def citations_to_sources(citations: object) -> list[str]:
+    if not isinstance(citations, list):
+        return []
+
+    sources: list[str] = []
+    seen: set[str] = set()
+    for citation in citations:
+        if not isinstance(citation, dict):
+            continue
+
+        source_id = citation.get('sourceId')
+        if isinstance(source_id, str) and source_id and source_id not in seen:
+            sources.append(source_id)
+            seen.add(source_id)
+
+    return sources

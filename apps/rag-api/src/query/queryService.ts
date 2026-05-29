@@ -63,7 +63,8 @@ export class QueryService {
     private readonly documentRepository: DocumentRepository,
     private readonly retrievalTraceRepository: RetrievalTraceRepository,
     private readonly queryTraceRepository: QueryTraceRepository,
-    private readonly answerProvider: AnswerProvider = new DeterministicAnswerProvider()
+    private readonly answerProvider: AnswerProvider = new DeterministicAnswerProvider(),
+    private readonly providerTimeoutMs = 10000
   ) {}
 
   async answer(input: QueryInput): Promise<QueryResult> {
@@ -92,10 +93,13 @@ export class QueryService {
     const providerStartTime = Date.now();
 
     try {
-      const providerResult = await this.answerProvider.generate({
-        question: input.question,
-        prompt
-      });
+      const providerResult = await withTimeout(
+        this.answerProvider.generate({
+          question: input.question,
+          prompt
+        }),
+        this.providerTimeoutMs
+      );
       const latencyMs = Date.now() - startTime;
       const providerCall: ProviderCallTelemetry = {
         provider: providerResult.provider,
@@ -140,9 +144,10 @@ export class QueryService {
         latencyMs
       };
     } catch (error) {
-      if (error instanceof AnswerProviderError) {
+      const providerError = toProviderError(error);
+      if (providerError) {
         const providerCall: ProviderCallTelemetry = {
-          provider: error.provider,
+          provider: providerError.provider,
           model: 'unknown',
           status: 'failed',
           latencyMs: Date.now() - providerStartTime,
@@ -150,13 +155,13 @@ export class QueryService {
           completionTokens: null,
           totalTokens: null,
           estimatedCostUsd: null,
-          errorCode: error.code
+          errorCode: providerError.code
         };
         const queryTrace = await this.queryTraceRepository.create({
           status: 'failed',
           question: input.question,
           answer: '',
-          provider: error.provider,
+          provider: providerError.provider,
           model: 'unknown',
           promptVersion: QUERY_PROMPT_VERSION,
           config,
@@ -169,17 +174,59 @@ export class QueryService {
           citations: [],
           providerCall,
           error: {
-            code: error.code,
-            message: error.message,
-            provider: error.provider,
-            retryable: error.retryable
+            code: providerError.code,
+            message: providerError.message,
+            provider: providerError.provider,
+            retryable: providerError.retryable
           }
         });
 
-        throw new QueryProviderFailure(error, queryTrace.id);
+        throw new QueryProviderFailure(providerError, queryTrace.id);
       }
 
       throw error;
+    }
+  }
+}
+
+function toProviderError(error: unknown): AnswerProviderError | null {
+  if (error instanceof AnswerProviderError) {
+    return error;
+  }
+
+  if (error instanceof Error && error.message === 'answer_provider_timeout') {
+    return new AnswerProviderError(
+      'provider_timeout',
+      'The answer provider timed out.',
+      'unknown',
+      true
+    );
+  }
+
+  if (error instanceof Error) {
+    return new AnswerProviderError('provider_unavailable', error.message, 'unknown', true);
+  }
+
+  return new AnswerProviderError(
+    'provider_unavailable',
+    'The answer provider is unavailable.',
+    'unknown',
+    true
+  );
+}
+
+async function withTimeout<T>(operation: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((_, reject) => {
+        timeoutHandle = setTimeout(() => reject(new Error('answer_provider_timeout')), timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
     }
   }
 }

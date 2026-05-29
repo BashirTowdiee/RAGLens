@@ -18,6 +18,8 @@ Implemented or bootstrapped scope:
 Phase 1: Monorepo and local infrastructure
 Phase 2: Sample corpus and seed data
 Phase 3: RAG API document ingestion
+Phase 4-13: Retrieval/query traces, eval runs/scoring/comparison, and CI quality gate
+Phase 14: Reliability hardening (request IDs, retries/timeouts, partial failure persistence)
 ```
 
 The project already has:

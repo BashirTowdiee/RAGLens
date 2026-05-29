@@ -10,7 +10,13 @@ from app.rag_client import (
 
 
 class TimeoutRagClient(RagApiClient):
-    def query(self, question: str, rag_config_id: str):
+    def query(
+        self,
+        question: str,
+        rag_config_id: str,
+        request_id: str | None = None,
+    ):
+        del question, rag_config_id, request_id
         raise RagProviderTimeoutError(timeout_seconds=5)
 
 
@@ -18,7 +24,8 @@ class FlakyRagClient(RagApiClient):
     def __init__(self) -> None:
         self.calls = 0
 
-    def query(self, question: str, rag_config_id: str):
+    def query(self, question: str, rag_config_id: str, request_id: str | None = None):
+        del question, rag_config_id, request_id
         self.calls += 1
         if self.calls == 1:
             raise RagProviderError('temporary provider overload', retryable=True)
@@ -37,7 +44,8 @@ class ExhaustedRetryRagClient(RagApiClient):
     def __init__(self) -> None:
         self.calls = 0
 
-    def query(self, question: str, rag_config_id: str):
+    def query(self, question: str, rag_config_id: str, request_id: str | None = None):
+        del question, rag_config_id, request_id
         self.calls += 1
         raise RagProviderError('temporary provider overload', retryable=True)
 
@@ -46,7 +54,8 @@ class NonRetryableRagClient(RagApiClient):
     def __init__(self) -> None:
         self.calls = 0
 
-    def query(self, question: str, rag_config_id: str):
+    def query(self, question: str, rag_config_id: str, request_id: str | None = None):
+        del question, rag_config_id, request_id
         self.calls += 1
         raise RagProviderError('invalid provider credentials', retryable=False)
 

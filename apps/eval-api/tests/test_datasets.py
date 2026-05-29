@@ -71,20 +71,21 @@ def test_rejects_duplicate_dataset_name_and_version() -> None:
 
     assert first_response.status_code == 201
     assert second_response.status_code == 409
-    assert second_response.json()['detail'] == {
-        'error': 'duplicate_dataset_version',
-        'message': 'A dataset with this name and version already exists.',
-    }
+    assert second_response.json()['detail']['error'] == 'duplicate_dataset_version'
+    assert (
+        second_response.json()['detail']['message']
+        == 'A dataset with this name and version already exists.'
+    )
+    assert second_response.json()['detail']['requestId']
 
 
 def test_returns_not_found_for_missing_dataset() -> None:
     response = client.get('/api/v1/datasets/missing-dataset')
 
     assert response.status_code == 404
-    assert response.json()['detail'] == {
-        'error': 'dataset_not_found',
-        'message': 'Dataset was not found.',
-    }
+    assert response.json()['detail']['error'] == 'dataset_not_found'
+    assert response.json()['detail']['message'] == 'Dataset was not found.'
+    assert response.json()['detail']['requestId']
 
 
 def test_create_and_fetch_dataset_test_case() -> None:
@@ -143,10 +144,9 @@ def test_returns_not_found_when_creating_test_case_for_missing_dataset() -> None
     )
 
     assert response.status_code == 404
-    assert response.json()['detail'] == {
-        'error': 'dataset_not_found',
-        'message': 'Dataset was not found.',
-    }
+    assert response.json()['detail']['error'] == 'dataset_not_found'
+    assert response.json()['detail']['message'] == 'Dataset was not found.'
+    assert response.json()['detail']['requestId']
 
 
 def test_returns_not_found_for_missing_test_case() -> None:
@@ -155,7 +155,6 @@ def test_returns_not_found_for_missing_test_case() -> None:
     response = client.get(f"/api/v1/datasets/{dataset['id']}/test-cases/missing-test-case")
 
     assert response.status_code == 404
-    assert response.json()['detail'] == {
-        'error': 'test_case_not_found',
-        'message': 'Test case was not found.',
-    }
+    assert response.json()['detail']['error'] == 'test_case_not_found'
+    assert response.json()['detail']['message'] == 'Test case was not found.'
+    assert response.json()['detail']['requestId']

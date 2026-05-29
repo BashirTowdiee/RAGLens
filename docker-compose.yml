@@ -26,6 +26,7 @@ services:
       NODE_ENV: development
       PORT: 8000
       DATABASE_URL: postgres://raglens:raglens@postgres:5432/raglens
+      ANSWER_PROVIDER_TIMEOUT_MS: 10000
     ports:
       - "8000:8000"
     depends_on:
@@ -37,8 +38,12 @@ services:
       context: ./apps/eval-api
     container_name: raglens-eval-api
     environment:
+      EVAL_REPOSITORY: postgres
+      RAG_CLIENT_MODE: http
       DATABASE_URL: postgres://raglens:raglens@postgres:5432/raglens
       RAG_API_BASE_URL: http://rag-api:8000
+      RAG_API_TIMEOUT_SECONDS: 10
+      RAG_API_MAX_RETRIES: 2
     ports:
       - "8001:8001"
     depends_on:

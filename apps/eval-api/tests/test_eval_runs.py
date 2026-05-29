@@ -147,10 +147,9 @@ def test_returns_not_found_for_missing_eval_run() -> None:
     response = client.get('/api/v1/eval-runs/missing-run')
 
     assert response.status_code == 404
-    assert response.json()['detail'] == {
-        'error': 'eval_run_not_found',
-        'message': 'Eval run was not found.',
-    }
+    assert response.json()['detail']['error'] == 'eval_run_not_found'
+    assert response.json()['detail']['message'] == 'Eval run was not found.'
+    assert response.json()['detail']['requestId']
 
 
 def test_rejects_invalid_eval_run_request() -> None:
@@ -395,10 +394,9 @@ def test_returns_not_found_when_creating_result_for_missing_eval_run() -> None:
     )
 
     assert response.status_code == 404
-    assert response.json()['detail'] == {
-        'error': 'eval_run_not_found',
-        'message': 'Eval run was not found.',
-    }
+    assert response.json()['detail']['error'] == 'eval_run_not_found'
+    assert response.json()['detail']['message'] == 'Eval run was not found.'
+    assert response.json()['detail']['requestId']
 
 
 def test_returns_not_found_for_missing_case_result() -> None:
@@ -407,10 +405,9 @@ def test_returns_not_found_for_missing_case_result() -> None:
     response = client.get(f"/api/v1/eval-runs/{eval_run['id']}/results/missing-result")
 
     assert response.status_code == 404
-    assert response.json()['detail'] == {
-        'error': 'case_result_not_found',
-        'message': 'Eval case result was not found.',
-    }
+    assert response.json()['detail']['error'] == 'case_result_not_found'
+    assert response.json()['detail']['message'] == 'Eval case result was not found.'
+    assert response.json()['detail']['requestId']
 
 
 def test_execute_eval_run_calls_stub_rag_client_and_stores_result() -> None:
@@ -489,15 +486,15 @@ def test_execute_eval_run_returns_not_found_for_missing_dataset() -> None:
     response = client.post(f"/api/v1/eval-runs/{eval_run['id']}/execute")
 
     assert response.status_code == 404
-    assert response.json()['detail'] == {
-        'error': 'dataset_not_found',
-        'message': 'Dataset was not found.',
-    }
+    assert response.json()['detail']['error'] == 'dataset_not_found'
+    assert response.json()['detail']['message'] == 'Dataset was not found.'
+    assert response.json()['detail']['requestId']
 
 
 def test_runner_stores_error_result_when_rag_client_fails() -> None:
     class FailingRagClient(RagApiClient):
-        def query(self, question: str, rag_config_id: str):
+        def query(self, question: str, rag_config_id: str, request_id: str | None = None):
+            del question, rag_config_id, request_id
             raise RuntimeError('RAG API timeout')
 
     repository = InMemoryEvalRunRepository()

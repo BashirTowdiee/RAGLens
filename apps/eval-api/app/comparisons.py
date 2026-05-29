@@ -7,6 +7,8 @@ from statistics import mean
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, status
+from psycopg import Connection
+from psycopg.rows import dict_row
 from pydantic import BaseModel, Field
 
 from app.eval_runs import (
@@ -62,25 +64,95 @@ class ComparisonRecord:
     created_at: str
 
 
-def create_comparison_router(repository: EvalRunRepository) -> APIRouter:
-    router = APIRouter(prefix='/api/v1/comparisons', tags=['comparisons'])
-    comparisons: dict[str, ComparisonRecord] = {}
+class ComparisonRepository:
+    def create(self, request: CreateComparisonRequest) -> ComparisonRecord:
+        raise NotImplementedError
 
-    @router.post('', response_model=ComparisonResponse, status_code=status.HTTP_201_CREATED)
-    def create_comparison(request: CreateComparisonRequest) -> ComparisonResponse:
-        validate_comparison_request(repository, request)
+    def get(self, comparison_id: str) -> ComparisonRecord | None:
+        raise NotImplementedError
+
+
+class InMemoryComparisonRepository(ComparisonRepository):
+    def __init__(self) -> None:
+        self._comparisons: dict[str, ComparisonRecord] = {}
+
+    def create(self, request: CreateComparisonRequest) -> ComparisonRecord:
         comparison = ComparisonRecord(
             id=str(uuid4()),
             baseline_eval_run_id=request.baseline_eval_run_id,
             candidate_eval_run_id=request.candidate_eval_run_id,
             created_at=datetime.now(UTC).isoformat(),
         )
-        comparisons[comparison.id] = comparison
-        return to_comparison_response(comparison, repository)
+        self._comparisons[comparison.id] = comparison
+        return comparison
+
+    def get(self, comparison_id: str) -> ComparisonRecord | None:
+        return self._comparisons.get(comparison_id)
+
+
+class PostgresComparisonRepository(ComparisonRepository):
+    def __init__(self, database_url: str) -> None:
+        self._database_url = database_url
+
+    def create(self, request: CreateComparisonRequest) -> ComparisonRecord:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                INSERT INTO eval.comparisons (
+                  id,
+                  baseline_eval_run_id,
+                  candidate_eval_run_id,
+                  created_at
+                )
+                VALUES (%s, %s, %s, %s)
+                RETURNING id, baseline_eval_run_id, candidate_eval_run_id, created_at
+                """,
+                (
+                    str(uuid4()),
+                    request.baseline_eval_run_id,
+                    request.candidate_eval_run_id,
+                    datetime.now(UTC).isoformat(),
+                ),
+            ).fetchone()
+
+        if row is None:
+            raise RuntimeError('Failed to create comparison.')
+
+        return map_comparison_row(row)
+
+    def get(self, comparison_id: str) -> ComparisonRecord | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT id, baseline_eval_run_id, candidate_eval_run_id, created_at
+                FROM eval.comparisons
+                WHERE id = %s
+                """,
+                (comparison_id,),
+            ).fetchone()
+
+        return map_comparison_row(row) if row else None
+
+    def _connect(self) -> Connection:
+        return Connection.connect(self._database_url, row_factory=dict_row)
+
+
+def create_comparison_router(
+    eval_run_repository: EvalRunRepository,
+    comparison_repository: ComparisonRepository | None = None,
+) -> APIRouter:
+    router = APIRouter(prefix='/api/v1/comparisons', tags=['comparisons'])
+    repository = comparison_repository or InMemoryComparisonRepository()
+
+    @router.post('', response_model=ComparisonResponse, status_code=status.HTTP_201_CREATED)
+    def create_comparison(request: CreateComparisonRequest) -> ComparisonResponse:
+        validate_comparison_request(eval_run_repository, request)
+        comparison = repository.create(request)
+        return to_comparison_response(comparison, eval_run_repository)
 
     @router.get('/{comparison_id}', response_model=ComparisonResponse)
     def get_comparison(comparison_id: str) -> ComparisonResponse:
-        comparison = comparisons.get(comparison_id)
+        comparison = repository.get(comparison_id)
         if comparison is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -90,7 +162,7 @@ def create_comparison_router(repository: EvalRunRepository) -> APIRouter:
                 },
             )
 
-        return to_comparison_response(comparison, repository)
+        return to_comparison_response(comparison, eval_run_repository)
 
     return router
 
@@ -278,3 +350,12 @@ def average(values: Iterable[float]) -> float:
 
 def round_metric(value: float) -> float:
     return round(value, 6)
+
+
+def map_comparison_row(row: dict) -> ComparisonRecord:
+    return ComparisonRecord(
+        id=str(row['id']),
+        baseline_eval_run_id=str(row['baseline_eval_run_id']),
+        candidate_eval_run_id=str(row['candidate_eval_run_id']),
+        created_at=row['created_at'].astimezone(UTC).isoformat(),
+    )
