@@ -288,6 +288,96 @@ describe('query routes', () => {
     expect(body.traceId).toEqual(expect.any(String));
   });
 
+  it('rewrites keyword query retrieval by default and persists rewrite config', async () => {
+    const app = buildApp(config);
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/ingest',
+      payload: {
+        sourceId: 'query-pto-policy',
+        title: 'Query PTO Policy',
+        sourceType: 'markdown',
+        version: '1.0.0',
+        content: '# Leave\n\nEmployees can request paid time off leave through HR.'
+      }
+    });
+
+    const queryResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/query',
+      payload: {
+        question: 'pto',
+        retrievalMode: 'keyword',
+        topK: 2
+      }
+    });
+
+    expect(queryResponse.statusCode).toBe(200);
+    const queryBody = queryResponse.json();
+    expect(queryBody.queryRewriteEnabled).toBe(true);
+    expect(queryBody.retrievalQuery).toBe('pto paid time off leave');
+    expect(queryBody.citations.length).toBeGreaterThan(0);
+    expect(queryBody.citations[0].sourceId).toBe('query-pto-policy');
+
+    const traceResponse = await app.inject({
+      method: 'GET',
+      url: `/api/v1/queries/${queryBody.traceId}`
+    });
+
+    expect(traceResponse.statusCode).toBe(200);
+    expect(traceResponse.json().trace.config).toMatchObject({
+      retrievalMode: 'keyword',
+      queryRewriteEnabled: true,
+      retrievalQuery: 'pto paid time off leave'
+    });
+  });
+
+  it('supports opt-out for keyword query rewriting', async () => {
+    const app = buildApp(config);
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/ingest',
+      payload: {
+        sourceId: 'query-pto-policy-opt-out',
+        title: 'Query PTO Policy Opt Out',
+        sourceType: 'markdown',
+        version: '1.0.0',
+        content: '# Leave\n\nEmployees can request paid time off leave through HR.'
+      }
+    });
+
+    const queryResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/query',
+      payload: {
+        question: 'pto',
+        retrievalMode: 'keyword',
+        rewriteQuery: false,
+        topK: 2
+      }
+    });
+
+    expect(queryResponse.statusCode).toBe(200);
+    const queryBody = queryResponse.json();
+    expect(queryBody.queryRewriteEnabled).toBe(false);
+    expect(queryBody.retrievalQuery).toBe('pto');
+    expect(queryBody.citations).toEqual([]);
+
+    const traceResponse = await app.inject({
+      method: 'GET',
+      url: `/api/v1/queries/${queryBody.traceId}`
+    });
+
+    expect(traceResponse.statusCode).toBe(200);
+    expect(traceResponse.json().trace.config).toMatchObject({
+      retrievalMode: 'keyword',
+      queryRewriteEnabled: false,
+      retrievalQuery: 'pto'
+    });
+  });
+
   it('rejects invalid query payloads', async () => {
     const app = buildApp(config);
 
@@ -307,5 +397,61 @@ describe('query routes', () => {
     expect(response.headers['x-request-id']).toBe('request-invalid');
     expect(response.json().error).toBe('invalid_query_payload');
     expect(response.json().requestId).toBe('request-invalid');
+  });
+
+  it('applies metadata filters to query retrieval and persists filter config in trace', async () => {
+    const app = buildApp(config);
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/ingest',
+      payload: {
+        sourceId: 'query-filter-au',
+        title: 'Query Filter AU Policy',
+        sourceType: 'markdown',
+        version: '1.0.0',
+        metadata: { region: 'au' },
+        content: '# Remote Work\n\nEmployees in AU may work remotely two days per week.'
+      }
+    });
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/ingest',
+      payload: {
+        sourceId: 'query-filter-us',
+        title: 'Query Filter US Policy',
+        sourceType: 'markdown',
+        version: '1.0.0',
+        metadata: { region: 'us' },
+        content: '# Remote Work\n\nEmployees in US may work remotely one day per week.'
+      }
+    });
+
+    const queryResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/query',
+      payload: {
+        question: 'How often can employees work remotely?',
+        retrievalMode: 'hybrid',
+        metadataFilters: { region: 'au' }
+      }
+    });
+
+    expect(queryResponse.statusCode).toBe(200);
+    const queryBody = queryResponse.json();
+    expect(queryBody.citations.length).toBeGreaterThan(0);
+    expect(queryBody.citations.every((citation: { sourceId: string }) => citation.sourceId === 'query-filter-au')).toBe(true);
+
+    const traceResponse = await app.inject({
+      method: 'GET',
+      url: `/api/v1/queries/${queryBody.traceId}`
+    });
+
+    expect(traceResponse.statusCode).toBe(200);
+    expect(traceResponse.json().trace.config).toMatchObject({
+      retrievalMode: 'hybrid',
+      metadataFilters: { region: 'au' }
+    });
   });
 });

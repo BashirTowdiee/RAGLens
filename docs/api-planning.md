@@ -668,6 +668,8 @@ Run a RAG query over indexed documents.
 {
   "question": "What is the remote work approval process?",
   "ragConfigId": "5e6794f4-f2cd-4471-a00f-697efb029555",
+  "retrievalMode": "hybrid",
+  "rewriteQuery": true,
   "metadataFilters": {
     "department": "People"
   }
@@ -684,6 +686,14 @@ Run a RAG query over indexed documents.
 
 If no `ragConfigId` is provided, use default config.
 
+`rewriteQuery` is optional:
+
+```text
+- default false for retrievalMode=vector
+- default true for retrievalMode=keyword|hybrid|hybrid_reranked
+- can be explicitly set true/false per request
+```
+
 ### Response
 
 ```json
@@ -699,6 +709,8 @@ If no `ragConfigId` is provided, use default config.
     }
   ],
   "traceId": "9a98bb24-60e7-4f01-a1fa-d8c8d8b6c333",
+  "retrievalQuery": "remote work approval process",
+  "queryRewriteEnabled": false,
   "usage": {
     "inputTokens": 3200,
     "outputTokens": 180,

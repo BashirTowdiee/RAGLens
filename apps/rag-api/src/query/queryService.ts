@@ -1,6 +1,7 @@
 import type { DocumentRepository } from '../documents/documentRepository.js';
+import { resolveRetrievalQuery } from '../documents/queryRewrite.js';
 import type { RetrievalTraceRepository } from '../documents/retrievalTraceRepository.js';
-import type { RetrievedChunkRecord, RetrievalMode } from '../documents/types.js';
+import type { MetadataFilters, RetrievedChunkRecord, RetrievalMode } from '../documents/types.js';
 import {
   AnswerProviderError,
   DeterministicAnswerProvider,
@@ -33,6 +34,8 @@ export type QueryResult = {
   citations: QueryCitation[];
   citationValidation: CitationValidationResult;
   traceId: string;
+  retrievalQuery: string;
+  queryRewriteEnabled: boolean;
   usage: {
     retrievedChunks: number;
     citedChunks: number;
@@ -46,6 +49,8 @@ export type QueryInput = {
   question: string;
   topK?: number;
   retrievalMode?: RetrievalMode;
+  rewriteQuery?: boolean;
+  metadataFilters?: MetadataFilters;
 };
 
 export class QueryProviderFailure extends Error {
@@ -71,17 +76,26 @@ export class QueryService {
     const startTime = Date.now();
     const topK = input.topK ?? 5;
     const retrievalMode = input.retrievalMode ?? 'vector';
+    const { retrievalQuery, queryRewriteEnabled } = resolveRetrievalQuery({
+      query: input.question,
+      retrievalMode,
+      rewriteQuery: input.rewriteQuery
+    });
     const config: QueryTraceConfig = {
       topK,
-      retrievalMode
+      retrievalMode,
+      metadataFilters: input.metadataFilters,
+      queryRewriteEnabled,
+      retrievalQuery
     };
     const chunks = await this.documentRepository.searchChunks({
-      query: input.question,
+      query: retrievalQuery,
       limit: topK,
-      mode: retrievalMode
+      mode: retrievalMode,
+      metadataFilters: input.metadataFilters
     });
     await this.retrievalTraceRepository.create({
-      query: input.question,
+      query: retrievalQuery,
       limit: topK,
       retrievalMode,
       durationMs: Date.now() - startTime,
@@ -140,6 +154,8 @@ export class QueryService {
         citations,
         citationValidation,
         traceId: queryTrace.id,
+        retrievalQuery,
+        queryRewriteEnabled,
         usage,
         latencyMs
       };

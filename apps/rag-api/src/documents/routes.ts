@@ -1,7 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { DocumentRepository } from './documentRepository.js';
+import { resolveRetrievalQuery } from './queryRewrite.js';
 import type { RetrievalTraceRepository } from './retrievalTraceRepository.js';
+
+const MetadataFiltersSchema = z.record(z.string(), z.union([z.string(), z.number(), z.boolean()]));
 
 const RetrievalModeSchema = z.enum(['vector', 'keyword', 'hybrid', 'hybrid_reranked']);
 
@@ -18,7 +21,40 @@ const IngestDocumentSchema = z.object({
 const SearchChunksQuerySchema = z.object({
   q: z.string().trim().min(1),
   limit: z.coerce.number().int().min(1).max(20).optional(),
-  mode: RetrievalModeSchema.optional()
+  mode: RetrievalModeSchema.optional(),
+  rewriteQuery: z
+    .preprocess((value) => {
+      if (value === undefined) {
+        return undefined;
+      }
+      if (typeof value === 'boolean') {
+        return value;
+      }
+      if (typeof value === 'string') {
+        const normalised = value.trim().toLowerCase();
+        if (normalised === 'true') {
+          return true;
+        }
+        if (normalised === 'false') {
+          return false;
+        }
+      }
+      return Symbol.for('invalid_rewrite_query_flag');
+    }, z.boolean())
+    .optional(),
+  metadataFilters: z
+    .preprocess((value) => {
+      if (typeof value === 'string') {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return Symbol.for('invalid_metadata_filters');
+        }
+      }
+
+      return value;
+    }, MetadataFiltersSchema)
+    .optional()
 });
 
 export async function registerDocumentRoutes(
@@ -67,13 +103,19 @@ export async function registerDocumentRoutes(
     const startTime = Date.now();
     const limit = parseResult.data.limit ?? 5;
     const retrievalMode = parseResult.data.mode ?? 'vector';
-    const chunks = await repository.searchChunks({
+    const { retrievalQuery, queryRewriteEnabled } = resolveRetrievalQuery({
       query: parseResult.data.q,
+      retrievalMode,
+      rewriteQuery: parseResult.data.rewriteQuery
+    });
+    const chunks = await repository.searchChunks({
+      query: retrievalQuery,
       limit,
-      mode: retrievalMode
+      mode: retrievalMode,
+      metadataFilters: parseResult.data.metadataFilters
     });
     const trace = await traceRepository.create({
-      query: parseResult.data.q,
+      query: retrievalQuery,
       limit,
       retrievalMode,
       durationMs: Date.now() - startTime,
@@ -82,6 +124,8 @@ export async function registerDocumentRoutes(
 
     return {
       query: parseResult.data.q,
+      retrievalQuery,
+      queryRewriteEnabled,
       traceId: trace.id,
       chunks
     };

@@ -56,6 +56,16 @@ export default function HomePage() {
             View eval runs
           </Link>
         </article>
+
+        <article className="panel">
+          <h2 style={{ marginTop: 0 }}>Developer tools</h2>
+          <p style={{ color: '#475569', lineHeight: 1.6 }}>
+            Call any supported <code>/api/v1</code> endpoint in rag-api or eval-api through a same-origin dashboard proxy for debugging and contract validation.
+          </p>
+          <Link href="/devtools" className="primary-link">
+            Open devtools
+          </Link>
+        </article>
       </section>
 
       <section style={{ display: 'grid', gap: '16px', marginTop: '32px' }}>

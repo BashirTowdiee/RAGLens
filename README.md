@@ -43,6 +43,7 @@ The current implementation provides:
 - eval runner retries, timeout mapping, cost/max-case guardrails, and partial failure persistence
 - seed corpus and golden eval fixture under `infra/seed`
 - dashboard document list/detail screens for corpus inspection
+- dashboard devtools page at `/devtools` for manual `rag-api` and `eval-api` request inspection
 - PostgreSQL + pgvector via Docker Compose
 - CI checks for Node, Python, docs, Docker Compose config, and Docker Compose image builds
 

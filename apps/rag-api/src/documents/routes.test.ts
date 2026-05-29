@@ -131,6 +131,116 @@ describe('document routes', () => {
     expect(traceBody.trace.chunks[0].sourceId).toBe('trace-policy-search');
   });
 
+  it('applies metadata filters for search routes', async () => {
+    const app = buildApp(config);
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/ingest',
+      payload: {
+        sourceId: 'trace-policy-au',
+        title: 'Trace Search AU Policy',
+        sourceType: 'markdown',
+        version: '1.0.0',
+        metadata: { region: 'au', type: 'policy' },
+        content: '# Trace Policy\n\nRetrieval traces capture query metadata and ranked chunks.'
+      }
+    });
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/ingest',
+      payload: {
+        sourceId: 'trace-policy-us',
+        title: 'Trace Search US Policy',
+        sourceType: 'markdown',
+        version: '1.0.0',
+        metadata: { region: 'us', type: 'policy' },
+        content: '# Trace Policy\n\nRetrieval traces capture query metadata and ranked chunks.'
+      }
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/v1/documents/search?q=retrieval%20traces&mode=hybrid&metadataFilters=${encodeURIComponent(
+        JSON.stringify({ region: 'au' })
+      )}`
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.chunks).toHaveLength(1);
+    expect(body.chunks[0].document.sourceId).toBe('trace-policy-au');
+  });
+
+  it('rewrites keyword retrieval queries by default and reports retrieval query metadata', async () => {
+    const app = buildApp(config);
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/ingest',
+      payload: {
+        sourceId: 'pto-policy',
+        title: 'PTO Policy',
+        sourceType: 'markdown',
+        version: '1.0.0',
+        content: '# Leave\n\nEmployees can request paid time off leave through HR.'
+      }
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/documents/search?q=pto&mode=keyword&limit=1'
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.query).toBe('pto');
+    expect(body.queryRewriteEnabled).toBe(true);
+    expect(body.retrievalQuery).toBe('pto paid time off leave');
+    expect(body.chunks).toHaveLength(1);
+    expect(body.chunks[0].document.sourceId).toBe('pto-policy');
+  });
+
+  it('supports opt-out for query rewriting on keyword retrieval', async () => {
+    const app = buildApp(config);
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/ingest',
+      payload: {
+        sourceId: 'pto-policy-no-rewrite',
+        title: 'PTO Policy No Rewrite',
+        sourceType: 'markdown',
+        version: '1.0.0',
+        content: '# Leave\n\nEmployees can request paid time off leave through HR.'
+      }
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/documents/search?q=pto&mode=keyword&rewriteQuery=false&limit=1'
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.queryRewriteEnabled).toBe(false);
+    expect(body.retrievalQuery).toBe('pto');
+    expect(body.chunks).toHaveLength(0);
+  });
+
+  it('rejects invalid metadata filter query payloads', async () => {
+    const app = buildApp(config);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/documents/search?q=retrieval&metadataFilters=not-json'
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toBe('invalid_search_query');
+  });
+
   it('returns 404 for missing retrieval traces', async () => {
     const app = buildApp(config);
 

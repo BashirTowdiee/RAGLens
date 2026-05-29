@@ -11,6 +11,7 @@ import type {
 import { chunkMarkdown, contentHash } from './markdownChunker.js';
 import type { DocumentRepository } from './documentRepository.js';
 import {
+  clampRetrievalScore,
   hybridScore,
   keywordScore,
   metadataMatches,
@@ -195,7 +196,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
     return result.rows
       .filter((row) => metadataMatches(rowMetadata(row), input.metadataFilters))
       .slice(0, limit)
-      .map((row) => mapRetrievedChunkRow(row, { score: Number(row.score) }));
+      .map((row) => mapRetrievedChunkRow(row, { score: clampRetrievalScore(Number(row.score)) }));
   }
 
   private async searchKeywordChunks(input: SearchChunksInput): Promise<RetrievedChunkRecord[]> {
@@ -318,7 +319,10 @@ export function createDocumentPool(databaseUrl: string): Pool {
 }
 
 function hybridScoreForRow(input: SearchChunksInput, row: SearchChunkRow): RetrievedScore {
-  const originalScore = hybridScore(Number(row.score), keywordScore(input.query, row.content));
+  const originalScore = hybridScore(
+    clampRetrievalScore(Number(row.score)),
+    keywordScore(input.query, row.content)
+  );
 
   if (input.mode !== 'hybrid_reranked') {
     return { score: originalScore };

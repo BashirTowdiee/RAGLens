@@ -1,3 +1,5 @@
+import type { RetrievalMode } from './types.js';
+
 const QUERY_REWRITE_EXPANSIONS: Record<string, string[]> = {
   pto: ['paid', 'time', 'off', 'leave'],
   wfh: ['remote', 'work', 'home'],
@@ -16,6 +18,30 @@ export function rewriteSearchQuery(query: string): string {
   }
 
   return [...new Set(rewrittenTerms)].join(' ');
+}
+
+export function resolveRetrievalQuery(input: {
+  query: string;
+  retrievalMode: RetrievalMode;
+  rewriteQuery?: boolean;
+}): {
+  retrievalQuery: string;
+  queryRewriteEnabled: boolean;
+} {
+  const queryRewriteEnabled = input.rewriteQuery ?? input.retrievalMode !== 'vector';
+
+  if (!queryRewriteEnabled) {
+    return {
+      retrievalQuery: input.query,
+      queryRewriteEnabled
+    };
+  }
+
+  const rewrittenQuery = rewriteSearchQuery(input.query);
+  return {
+    retrievalQuery: rewrittenQuery || input.query,
+    queryRewriteEnabled
+  };
 }
 
 function normalisedTerms(value: string): string[] {

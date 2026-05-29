@@ -8,7 +8,11 @@ const RetrievalModeSchema = z.enum(['vector', 'keyword', 'hybrid', 'hybrid_reran
 const QueryRequestSchema = z.object({
   question: z.string().trim().min(1),
   topK: z.number().int().min(1).max(20).optional(),
-  retrievalMode: RetrievalModeSchema.optional()
+  retrievalMode: RetrievalModeSchema.optional(),
+  rewriteQuery: z.boolean().optional(),
+  metadataFilters: z
+    .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+    .optional()
 });
 
 export async function registerQueryRoutes(
@@ -35,6 +39,8 @@ export async function registerQueryRoutes(
         requestId,
         traceId: result.traceId,
         retrievalMode: parseResult.data.retrievalMode ?? 'vector',
+        queryRewriteEnabled: result.queryRewriteEnabled,
+        retrievalQuery: result.retrievalQuery,
         provider: result.usage.provider,
         model: result.usage.model,
         latencyMs: result.latencyMs,

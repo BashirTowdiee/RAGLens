@@ -1014,6 +1014,14 @@ Goal:
 Improve retrieval quality and make comparison more meaningful.
 ```
 
+Implementation status:
+
+```text
+In progress.
+Implemented in-repo: keyword, hybrid, and hybrid_reranked retrieval modes, metadata filters, and deterministic query rewriting controls.
+Remaining in this phase: deeper reranking adapter behaviour and context packing improvements.
+```
+
 Build:
 
 ```text

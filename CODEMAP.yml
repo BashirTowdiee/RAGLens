@@ -74,9 +74,12 @@ apps:
       - apps/dashboard/app/documents/page.tsx
       - apps/dashboard/app/retrieval/page.tsx
       - apps/dashboard/app/eval-runs/page.tsx
+      - apps/dashboard/app/devtools/page.tsx
+      - apps/dashboard/app/api/devtools/route.ts
     important_files:
       - apps/dashboard/app/lib/ragApi.ts
       - apps/dashboard/app/lib/evalApi.ts
+      - apps/dashboard/app/devtools/devtools-client.tsx
       - apps/dashboard/next.config.mjs
     tests:
       - none_currently_detected
@@ -97,6 +100,8 @@ docs:
   - id: docs
     path: docs
     purpose: Source-of-truth product and engineering documentation.
+    important_files:
+      - docs/dashboard-devtools.md
   - id: docs-site
     path: docs-site
     purpose: Astro site rendering docs from ../docs.

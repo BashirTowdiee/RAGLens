@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { RetrievalMode } from '../documents/types.js';
+import type { MetadataFilters, RetrievalMode } from '../documents/types.js';
 import type { AnswerProviderErrorCode } from './answerProvider.js';
 import type { CitationValidationResult } from './citationValidation.js';
 import type { QueryCitation } from './queryService.js';
@@ -9,6 +9,9 @@ export type QueryTraceStatus = 'succeeded' | 'failed';
 export type QueryTraceConfig = {
   topK: number;
   retrievalMode: RetrievalMode;
+  metadataFilters?: MetadataFilters;
+  queryRewriteEnabled?: boolean;
+  retrievalQuery?: string;
 };
 
 export type QueryTraceError = {

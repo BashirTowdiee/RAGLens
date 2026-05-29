@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  clampRetrievalScore,
   InMemoryDocumentRepository,
   hybridScore,
   keywordScore,
@@ -13,9 +14,29 @@ const scoreWeightTolerance = 8;
 
 describe('keywordScore', () => {
   it('scores lexical matches as a fraction of query terms', () => {
-    expect(keywordScore('remote work policy', 'Remote employees follow the hybrid work policy.')).toBeCloseTo(1);
-    expect(keywordScore('remote work policy', 'Remote employees receive equipment.')).toBeCloseTo(1 / 3);
+    expect(
+      keywordScore('remote work policy', 'Remote employees follow the hybrid work policy.')
+    ).toBeCloseTo(0.75);
+    expect(keywordScore('remote work policy', 'Remote employees receive equipment.')).toBeCloseTo(0.25);
     expect(keywordScore('remote work policy', 'Catering guidelines apply.')).toBe(0);
+  });
+
+  it('boosts exact phrase matches and dense repeated matches', () => {
+    const densePhrase = keywordScore(
+      'remote work policy',
+      'The remote work policy applies. Remote work policy details are documented.'
+    );
+    const sparseMatch = keywordScore(
+      'remote work policy',
+      'Remote guidelines exist and work varies by team under policy references.'
+    );
+
+    expect(densePhrase).toBeGreaterThan(sparseMatch);
+    expect(densePhrase).toBeCloseTo(0.93);
+  });
+
+  it('normalizes duplicate query terms before scoring', () => {
+    expect(keywordScore('remote remote remote', 'remote work policy')).toBeCloseTo(0.75);
   });
 });
 
@@ -24,6 +45,11 @@ describe('hybridScore', () => {
     expect(hybridScore(1, 0)).toBeCloseTo(0.7);
     expect(hybridScore(0, 1)).toBeCloseTo(0.3);
     expect(hybridScore(0.5, 0.5)).toBeCloseTo(0.5);
+  });
+
+  it('clamps out-of-range inputs to normalized score bounds', () => {
+    expect(hybridScore(2, 2)).toBe(1);
+    expect(hybridScore(-2, -2)).toBe(0);
   });
 });
 
@@ -48,6 +74,19 @@ describe('rerankedScore', () => {
     expect(rerankedScore(1, 0)).toBeCloseTo(0.6);
     expect(rerankedScore(0, 1)).toBeCloseTo(0.4);
     expect(rerankedScore(0.5, 0.5)).toBeCloseTo(0.5);
+  });
+
+  it('clamps combined rerank output to normalized bounds', () => {
+    expect(rerankedScore(2, 2)).toBe(1);
+    expect(rerankedScore(-2, -2)).toBe(0);
+  });
+});
+
+describe('clampRetrievalScore', () => {
+  it('clamps retrieval scores to the 0..1 range', () => {
+    expect(clampRetrievalScore(0.4)).toBe(0.4);
+    expect(clampRetrievalScore(2)).toBe(1);
+    expect(clampRetrievalScore(-2)).toBe(0);
   });
 });
 
