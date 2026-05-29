@@ -12,6 +12,9 @@ export type QueryTraceConfig = {
   metadataFilters?: MetadataFilters;
   queryRewriteEnabled?: boolean;
   retrievalQuery?: string;
+  contextTokenBudget?: number;
+  packedChunkCount?: number;
+  droppedChunkCount?: number;
 };
 
 export type QueryTraceError = {

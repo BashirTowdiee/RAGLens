@@ -333,6 +333,52 @@ describe('query routes', () => {
     });
   });
 
+  it('packs prompt context by token budget and persists packing stats in trace config', async () => {
+    const app = buildApp({
+      ...config,
+      PROMPT_CONTEXT_TOKEN_BUDGET: 12
+    });
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/ingest',
+      payload: {
+        sourceId: 'query-pack-context',
+        title: 'Query Pack Context',
+        sourceType: 'markdown',
+        version: '1.0.0',
+        content:
+          '# Remote Work\n\n## Eligibility\n\nEmployees may work remotely two days per week.\n\n## Equipment\n\nEmployees receive laptops and monitors for home offices.'
+      }
+    });
+
+    const queryResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/query',
+      payload: {
+        question: 'How often can employees work remotely and what equipment is provided?',
+        retrievalMode: 'hybrid',
+        topK: 5
+      }
+    });
+
+    expect(queryResponse.statusCode).toBe(200);
+    const queryBody = queryResponse.json();
+    expect(queryBody.usage.retrievedChunks).toBeGreaterThan(queryBody.citations.length);
+
+    const traceResponse = await app.inject({
+      method: 'GET',
+      url: `/api/v1/queries/${queryBody.traceId}`
+    });
+
+    expect(traceResponse.statusCode).toBe(200);
+    expect(traceResponse.json().trace.config).toMatchObject({
+      contextTokenBudget: 12,
+      packedChunkCount: queryBody.citations.length,
+      droppedChunkCount: queryBody.usage.retrievedChunks - queryBody.citations.length
+    });
+  });
+
   it('supports opt-out for keyword query rewriting', async () => {
     const app = buildApp(config);
 

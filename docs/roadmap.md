@@ -1018,8 +1018,8 @@ Implementation status:
 
 ```text
 In progress.
-Implemented in-repo: keyword, hybrid, and hybrid_reranked retrieval modes, metadata filters, and deterministic query rewriting controls.
-Remaining in this phase: deeper reranking adapter behaviour and context packing improvements.
+Implemented in-repo: keyword, hybrid, and hybrid_reranked retrieval modes, metadata filters, deterministic query rewriting controls, and token-budget prompt context packing.
+Remaining in this phase: deeper reranking adapter behaviour.
 ```
 
 Build:

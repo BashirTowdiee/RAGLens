@@ -1,14 +1,14 @@
 import type { DocumentRepository } from '../documents/documentRepository.js';
 import { resolveRetrievalQuery } from '../documents/queryRewrite.js';
 import type { RetrievalTraceRepository } from '../documents/retrievalTraceRepository.js';
-import type { MetadataFilters, RetrievedChunkRecord, RetrievalMode } from '../documents/types.js';
+import type { MetadataFilters, RetrievalMode } from '../documents/types.js';
 import {
   AnswerProviderError,
   DeterministicAnswerProvider,
   type AnswerProvider
 } from './answerProvider.js';
 import { validateCitations, type CitationValidationResult } from './citationValidation.js';
-import { buildQueryPrompt } from './promptBuilder.js';
+import { buildQueryPrompt, type QueryPromptChunk } from './promptBuilder.js';
 import type {
   ProviderCallTelemetry,
   QueryTraceConfig,
@@ -69,7 +69,8 @@ export class QueryService {
     private readonly retrievalTraceRepository: RetrievalTraceRepository,
     private readonly queryTraceRepository: QueryTraceRepository,
     private readonly answerProvider: AnswerProvider = new DeterministicAnswerProvider(),
-    private readonly providerTimeoutMs = 10000
+    private readonly providerTimeoutMs = 10000,
+    private readonly promptContextTokenBudget = 1200
   ) {}
 
   async answer(input: QueryInput): Promise<QueryResult> {
@@ -86,7 +87,8 @@ export class QueryService {
       retrievalMode,
       metadataFilters: input.metadataFilters,
       queryRewriteEnabled,
-      retrievalQuery
+      retrievalQuery,
+      contextTokenBudget: this.promptContextTokenBudget
     };
     const chunks = await this.documentRepository.searchChunks({
       query: retrievalQuery,
@@ -101,10 +103,14 @@ export class QueryService {
       durationMs: Date.now() - startTime,
       chunks
     });
-    const citations = createCitations(chunks);
+    const prompt = buildQueryPrompt(input.question, chunks, {
+      maxContextTokens: this.promptContextTokenBudget
+    });
+    const citations = createCitations(prompt.context);
     const citationValidation = validateCitations(citations, chunks);
-    const prompt = buildQueryPrompt(input.question, chunks);
     const providerStartTime = Date.now();
+    config.packedChunkCount = prompt.context.length;
+    config.droppedChunkCount = Math.max(0, chunks.length - prompt.context.length);
 
     try {
       const providerResult = await withTimeout(
@@ -247,14 +253,14 @@ async function withTimeout<T>(operation: Promise<T>, timeoutMs: number): Promise
   }
 }
 
-function createCitations(chunks: RetrievedChunkRecord[]): QueryCitation[] {
-  return chunks.map<QueryCitation>((chunk, index) => ({
-    chunkId: chunk.id,
+function createCitations(chunks: QueryPromptChunk[]): QueryCitation[] {
+  return chunks.map<QueryCitation>((chunk) => ({
+    chunkId: chunk.chunkId,
     documentId: chunk.documentId,
-    sourceId: chunk.document.sourceId,
-    title: chunk.document.title,
+    sourceId: chunk.sourceId,
+    title: chunk.title,
     headingPath: chunk.headingPath,
-    rank: index + 1,
+    rank: chunk.citationIndex,
     score: chunk.score,
     originalScore: chunk.originalScore,
     rerankScore: chunk.rerankScore

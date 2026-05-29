@@ -17,8 +17,9 @@ import { registerQueryRoutes } from './query/routes.js';
 export const REQUEST_ID_HEADER = 'x-request-id';
 export const MAX_REQUEST_ID_LENGTH = 128;
 
-type RuntimeConfig = Omit<AppConfig, 'ANSWER_PROVIDER_TIMEOUT_MS'> & {
+type RuntimeConfig = Omit<AppConfig, 'ANSWER_PROVIDER_TIMEOUT_MS' | 'PROMPT_CONTEXT_TOKEN_BUDGET'> & {
   ANSWER_PROVIDER_TIMEOUT_MS?: number;
+  PROMPT_CONTEXT_TOKEN_BUDGET?: number;
 };
 
 function resolveRequestId(input: string | string[] | undefined): string {
@@ -55,7 +56,8 @@ export function buildApp(config: RuntimeConfig) {
     retrievalTraceRepository,
     queryTraceRepository,
     undefined,
-    config.ANSWER_PROVIDER_TIMEOUT_MS ?? 10000
+    config.ANSWER_PROVIDER_TIMEOUT_MS ?? 10000,
+    config.PROMPT_CONTEXT_TOKEN_BUDGET ?? 1200
   );
 
   app.decorateRequest('requestId', '');

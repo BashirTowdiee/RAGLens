@@ -694,6 +694,14 @@ If no `ragConfigId` is provided, use default config.
 - can be explicitly set true/false per request
 ```
 
+Prompt context packing is applied before generation:
+
+```text
+- retrieved chunks are packed by rank into a token budget
+- citations only refer to chunks included in packed context
+- trace config records contextTokenBudget/packedChunkCount/droppedChunkCount
+```
+
 ### Response
 
 ```json
