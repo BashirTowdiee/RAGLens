@@ -11,6 +11,7 @@ import {
 import { PostgresRetrievalTraceRepository } from './documents/postgresRetrievalTraceRepository.js';
 import { InMemoryRetrievalTraceRepository } from './documents/retrievalTraceRepository.js';
 import { PostgresQueryTraceRepository } from './query/postgresQueryTraceRepository.js';
+import { createAnswerProvider } from './query/providerFactory.js';
 import { QueryService } from './query/queryService.js';
 import { InMemoryQueryTraceRepository } from './query/queryTraceRepository.js';
 import { registerQueryRoutes } from './query/routes.js';
@@ -20,11 +21,31 @@ export const MAX_REQUEST_ID_LENGTH = 128;
 
 type RuntimeConfig = Omit<
   AppConfig,
-  'ANSWER_PROVIDER_TIMEOUT_MS' | 'PROMPT_CONTEXT_TOKEN_BUDGET' | 'RERANKER_PROVIDER'
+  | 'ANSWER_PROVIDER_TIMEOUT_MS'
+  | 'PROMPT_CONTEXT_TOKEN_BUDGET'
+  | 'RERANKER_PROVIDER'
+  | 'ANSWER_PROVIDER'
+  | 'ANSWER_MODEL'
+  | 'OPENAI_API_KEY'
+  | 'OPENAI_BASE_URL'
+  | 'ANTHROPIC_API_KEY'
+  | 'ANTHROPIC_BASE_URL'
+  | 'OPENROUTER_API_KEY'
+  | 'OPENROUTER_BASE_URL'
+  | 'OLLAMA_BASE_URL'
 > & {
   ANSWER_PROVIDER_TIMEOUT_MS?: number;
   PROMPT_CONTEXT_TOKEN_BUDGET?: number;
   RERANKER_PROVIDER?: 'deterministic' | 'none';
+  ANSWER_PROVIDER?: AppConfig['ANSWER_PROVIDER'];
+  ANSWER_MODEL?: string;
+  OPENAI_API_KEY?: string;
+  OPENAI_BASE_URL?: string;
+  ANTHROPIC_API_KEY?: string;
+  ANTHROPIC_BASE_URL?: string;
+  OPENROUTER_API_KEY?: string;
+  OPENROUTER_BASE_URL?: string;
+  OLLAMA_BASE_URL?: string;
 };
 
 function resolveRequestId(input: string | string[] | undefined): string {
@@ -57,11 +78,29 @@ export function buildApp(config: RuntimeConfig) {
   const queryTraceRepository = documentPool
     ? new PostgresQueryTraceRepository(documentPool)
     : new InMemoryQueryTraceRepository();
+  const answerProvider = createAnswerProvider({
+    NODE_ENV: config.NODE_ENV,
+    PORT: config.PORT,
+    DATABASE_URL: config.DATABASE_URL,
+    DOCUMENT_REPOSITORY: config.DOCUMENT_REPOSITORY,
+    ANSWER_PROVIDER: config.ANSWER_PROVIDER ?? 'deterministic',
+    ANSWER_MODEL: config.ANSWER_MODEL,
+    ANSWER_PROVIDER_TIMEOUT_MS: config.ANSWER_PROVIDER_TIMEOUT_MS ?? 10000,
+    PROMPT_CONTEXT_TOKEN_BUDGET: config.PROMPT_CONTEXT_TOKEN_BUDGET ?? 1200,
+    RERANKER_PROVIDER: config.RERANKER_PROVIDER ?? 'deterministic',
+    OPENAI_API_KEY: config.OPENAI_API_KEY,
+    OPENAI_BASE_URL: config.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
+    ANTHROPIC_API_KEY: config.ANTHROPIC_API_KEY,
+    ANTHROPIC_BASE_URL: config.ANTHROPIC_BASE_URL ?? 'https://api.anthropic.com/v1',
+    OPENROUTER_API_KEY: config.OPENROUTER_API_KEY,
+    OPENROUTER_BASE_URL: config.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1',
+    OLLAMA_BASE_URL: config.OLLAMA_BASE_URL ?? 'http://localhost:11434/v1'
+  });
   const queryService = new QueryService(
     documentRepository,
     retrievalTraceRepository,
     queryTraceRepository,
-    undefined,
+    answerProvider,
     config.ANSWER_PROVIDER_TIMEOUT_MS ?? 10000,
     config.PROMPT_CONTEXT_TOKEN_BUDGET ?? 1200
   );

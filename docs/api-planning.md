@@ -710,6 +710,15 @@ Reranking adapter behaviour:
 - optional adapter mode: none (keeps rerank score equal to original hybrid score)
 ```
 
+Provider runtime selection:
+
+```text
+- provider is selected via service config (ANSWER_PROVIDER / ANSWER_MODEL)
+- supported providers: deterministic, openai, anthropic, openrouter, ollama
+- provider failures are normalized into stable error codes:
+  provider_unavailable | provider_timeout | provider_invalid_response
+```
+
 ### Response
 
 ```json

@@ -1083,6 +1083,14 @@ Goal:
 Compare model/provider quality, cost, and latency.
 ```
 
+Implementation status:
+
+```text
+In progress.
+Implemented in-repo: provider factory with deterministic/openai/openrouter/anthropic/ollama adapters, provider-specific model defaults, and normalized provider error mapping.
+Remaining: pricing model config and provider comparison run presets.
+```
+
 Add providers:
 
 ```text
