@@ -424,6 +424,44 @@ describe('query routes', () => {
     });
   });
 
+  it('uses the configured no-op reranker adapter for hybrid_reranked mode', async () => {
+    const app = buildApp({
+      ...config,
+      RERANKER_PROVIDER: 'none'
+    });
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/ingest',
+      payload: {
+        sourceId: 'query-rerank-none-policy',
+        title: 'Query Rerank None Policy',
+        sourceType: 'markdown',
+        version: '1.0.0',
+        content: '# Remote Work\n\n## Remote Work\n\nEmployees can work remotely two days per week.'
+      }
+    });
+
+    const queryResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/query',
+      payload: {
+        question: 'remote work policy',
+        retrievalMode: 'hybrid_reranked',
+        topK: 3
+      }
+    });
+
+    expect(queryResponse.statusCode).toBe(200);
+    const queryBody = queryResponse.json();
+    expect(queryBody.citations.length).toBeGreaterThan(0);
+    expect(queryBody.citations[0].originalScore).toBeDefined();
+    expect(queryBody.citations[0].rerankScore).toBeDefined();
+    expect(queryBody.citations[0].rerankScore).toBeCloseTo(
+      queryBody.citations[0].originalScore
+    );
+  });
+
   it('rejects invalid query payloads', async () => {
     const app = buildApp(config);
 

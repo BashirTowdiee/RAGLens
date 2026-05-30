@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import Fastify from 'fastify';
 import type { AppConfig } from './config.js';
 import { InMemoryDocumentRepository } from './documents/documentRepository.js';
+import { DeterministicReranker, NoopReranker, type Reranker } from './documents/reranker.js';
 import { registerDocumentRoutes } from './documents/routes.js';
 import {
   createDocumentPool,
@@ -17,9 +18,13 @@ import { registerQueryRoutes } from './query/routes.js';
 export const REQUEST_ID_HEADER = 'x-request-id';
 export const MAX_REQUEST_ID_LENGTH = 128;
 
-type RuntimeConfig = Omit<AppConfig, 'ANSWER_PROVIDER_TIMEOUT_MS' | 'PROMPT_CONTEXT_TOKEN_BUDGET'> & {
+type RuntimeConfig = Omit<
+  AppConfig,
+  'ANSWER_PROVIDER_TIMEOUT_MS' | 'PROMPT_CONTEXT_TOKEN_BUDGET' | 'RERANKER_PROVIDER'
+> & {
   ANSWER_PROVIDER_TIMEOUT_MS?: number;
   PROMPT_CONTEXT_TOKEN_BUDGET?: number;
+  RERANKER_PROVIDER?: 'deterministic' | 'none';
 };
 
 function resolveRequestId(input: string | string[] | undefined): string {
@@ -40,11 +45,12 @@ export function buildApp(config: RuntimeConfig) {
   const app = Fastify({
     logger: config.NODE_ENV !== 'test'
   });
+  const reranker = resolveReranker(config.RERANKER_PROVIDER ?? 'deterministic');
   const documentPool =
     config.DOCUMENT_REPOSITORY === 'postgres' ? createDocumentPool(config.DATABASE_URL) : null;
   const documentRepository = documentPool
-    ? new PostgresDocumentRepository(documentPool)
-    : new InMemoryDocumentRepository();
+    ? new PostgresDocumentRepository(documentPool, undefined, reranker)
+    : new InMemoryDocumentRepository(undefined, reranker);
   const retrievalTraceRepository = documentPool
     ? new PostgresRetrievalTraceRepository(documentPool)
     : new InMemoryRetrievalTraceRepository();
@@ -79,6 +85,14 @@ export function buildApp(config: RuntimeConfig) {
   });
 
   return app;
+}
+
+function resolveReranker(provider: 'deterministic' | 'none'): Reranker {
+  if (provider === 'none') {
+    return new NoopReranker();
+  }
+
+  return new DeterministicReranker();
 }
 
 declare module 'fastify' {

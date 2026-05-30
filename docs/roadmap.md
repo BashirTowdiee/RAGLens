@@ -1017,9 +1017,9 @@ Improve retrieval quality and make comparison more meaningful.
 Implementation status:
 
 ```text
-In progress.
-Implemented in-repo: keyword, hybrid, and hybrid_reranked retrieval modes, metadata filters, deterministic query rewriting controls, and token-budget prompt context packing.
-Remaining in this phase: deeper reranking adapter behaviour.
+Completed in-repo.
+Implemented: keyword, hybrid, and hybrid_reranked retrieval modes, metadata filters, deterministic query rewriting controls, token-budget prompt context packing, and a configurable reranker adapter seam.
+Remaining roadmap work starts at Phase 16.
 ```
 
 Build:

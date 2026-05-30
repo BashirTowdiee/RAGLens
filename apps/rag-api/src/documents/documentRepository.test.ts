@@ -9,6 +9,7 @@ import {
   rerankScore,
   retrievalMetadataFor
 } from './documentRepository.js';
+import { NoopReranker } from './reranker.js';
 
 const scoreWeightTolerance = 8;
 
@@ -229,6 +230,28 @@ describe('InMemoryDocumentRepository hybrid retrieval', () => {
       rerankedScore(results[0].originalScore ?? 0, results[0].rerankScore ?? 0),
       scoreWeightTolerance
     );
+  });
+
+  it('supports a no-op reranker adapter for deterministic fallback behaviour', async () => {
+    const repository = new InMemoryDocumentRepository(undefined, new NoopReranker());
+    await repository.ingest({
+      sourceId: 'remote-guide',
+      title: 'Remote Guide',
+      sourceType: 'markdown',
+      content: '# Remote Guide\n\n## Remote Work\n\nEligible employees can use the remote work policy.'
+    });
+
+    const results = await repository.searchChunks({
+      query: 'remote work',
+      mode: 'hybrid_reranked',
+      limit: 5
+    });
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].originalScore).toBeDefined();
+    expect(results[0].rerankScore).toBeDefined();
+    expect(results[0].rerankScore).toBeCloseTo(results[0].originalScore ?? 0);
+    expect(results[0].score).toBeCloseTo(results[0].originalScore ?? 0, scoreWeightTolerance);
   });
 });
 

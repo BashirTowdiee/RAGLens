@@ -16,7 +16,6 @@ import {
   keywordScore,
   metadataMatches,
   rerankedScore,
-  rerankScore,
   retrievalMetadataFor
 } from './documentRepository.js';
 import {
@@ -24,6 +23,7 @@ import {
   vectorToSql,
   type EmbeddingProvider
 } from './embeddings.js';
+import { DeterministicReranker, type Reranker } from './reranker.js';
 
 type DocumentRow = {
   id: string;
@@ -77,7 +77,8 @@ type RetrievedScore = {
 export class PostgresDocumentRepository implements DocumentRepository {
   constructor(
     private readonly pool: Pool,
-    private readonly embeddingProvider: EmbeddingProvider = new DeterministicEmbeddingProvider()
+    private readonly embeddingProvider: EmbeddingProvider = new DeterministicEmbeddingProvider(),
+    private readonly reranker: Reranker = new DeterministicReranker()
   ) {}
 
   async ingest(input: IngestDocumentInput): Promise<IngestDocumentResult> {
@@ -260,11 +261,36 @@ export class PostgresDocumentRepository implements DocumentRepository {
 
     return result.rows
       .filter((row) => metadataMatches(rowMetadata(row), input.metadataFilters))
-      .map((row) => ({ row, score: hybridScoreForRow(input, row) }))
+      .map((row) => ({ row, score: this.hybridScoreForRow(input, row) }))
       .filter(({ score }) => score.score > 0)
       .sort((left, right) => right.score.score - left.score.score || left.row.chunk_index - right.row.chunk_index)
       .slice(0, limit)
       .map(({ row, score }) => mapRetrievedChunkRow(row, score));
+  }
+
+  private hybridScoreForRow(input: SearchChunksInput, row: SearchChunkRow): RetrievedScore {
+    const originalScore = hybridScore(
+      clampRetrievalScore(Number(row.score)),
+      keywordScore(input.query, row.content)
+    );
+
+    if (input.mode !== 'hybrid_reranked') {
+      return { score: originalScore };
+    }
+
+    const rerankScoreValue =
+      this.reranker.kind === 'none'
+        ? originalScore
+        : this.reranker.rerank(input.query, {
+            content: row.content,
+            headingPath: row.heading_path
+          });
+
+    return {
+      score: rerankedScore(originalScore, rerankScoreValue),
+      originalScore,
+      rerankScore: rerankScoreValue
+    };
   }
 
   private async upsertDocument(
@@ -316,28 +342,6 @@ export class PostgresDocumentRepository implements DocumentRepository {
 
 export function createDocumentPool(databaseUrl: string): Pool {
   return new Pool({ connectionString: databaseUrl });
-}
-
-function hybridScoreForRow(input: SearchChunksInput, row: SearchChunkRow): RetrievedScore {
-  const originalScore = hybridScore(
-    clampRetrievalScore(Number(row.score)),
-    keywordScore(input.query, row.content)
-  );
-
-  if (input.mode !== 'hybrid_reranked') {
-    return { score: originalScore };
-  }
-
-  const rerankScoreValue = rerankScore(input.query, {
-    content: row.content,
-    headingPath: row.heading_path
-  });
-
-  return {
-    score: rerankedScore(originalScore, rerankScoreValue),
-    originalScore,
-    rerankScore: rerankScoreValue
-  };
 }
 
 function mapDocumentRow(row: DocumentRow): DocumentRecord {

@@ -702,6 +702,14 @@ Prompt context packing is applied before generation:
 - trace config records contextTokenBudget/packedChunkCount/droppedChunkCount
 ```
 
+Reranking adapter behaviour:
+
+```text
+- hybrid_reranked uses a configured reranker adapter
+- default adapter: deterministic heuristic reranker
+- optional adapter mode: none (keeps rerank score equal to original hybrid score)
+```
+
 ### Response
 
 ```json

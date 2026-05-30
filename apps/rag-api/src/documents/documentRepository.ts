@@ -16,6 +16,12 @@ import {
   type EmbeddingProvider,
   type EmbeddingVector
 } from './embeddings.js';
+import {
+  DeterministicReranker,
+  type Reranker
+} from './reranker.js';
+
+const defaultReranker = new DeterministicReranker();
 
 export interface DocumentRepository {
   ingest(input: IngestDocumentInput): Promise<IngestDocumentResult>;
@@ -31,7 +37,8 @@ export class InMemoryDocumentRepository implements DocumentRepository {
   private readonly embeddingsByChunkId = new Map<string, EmbeddingVector>();
 
   constructor(
-    private readonly embeddingProvider: EmbeddingProvider = new DeterministicEmbeddingProvider()
+    private readonly embeddingProvider: EmbeddingProvider = new DeterministicEmbeddingProvider(),
+    private readonly reranker: Reranker = new DeterministicReranker()
   ) {}
 
   async ingest(input: IngestDocumentInput): Promise<IngestDocumentResult> {
@@ -124,7 +131,8 @@ export class InMemoryDocumentRepository implements DocumentRepository {
         query: input.query,
         mode,
         embedding: this.embeddingsByChunkId.get(chunk.id),
-        embeddingProvider: this.embeddingProvider
+        embeddingProvider: this.embeddingProvider,
+        reranker: this.reranker
       });
 
       if (score.score <= 0) {
@@ -158,6 +166,7 @@ type ScoreChunkInput = {
   mode: RetrievalMode;
   embedding?: EmbeddingVector;
   embeddingProvider: EmbeddingProvider;
+  reranker: Reranker;
 };
 
 export type RetrievalScore = {
@@ -185,7 +194,10 @@ export function scoreChunkForMode(input: ScoreChunkInput): RetrievalScore {
       return { score: originalScore };
     }
 
-    const rerankScoreValue = rerankScore(input.query, input.chunk);
+    const rerankScoreValue =
+      input.reranker.kind === 'none'
+        ? originalScore
+        : input.reranker.rerank(input.query, input.chunk);
 
     return {
       score: rerankedScore(originalScore, rerankScoreValue),
@@ -204,9 +216,7 @@ export function hybridScore(vectorScore: number, keywordScoreValue: number): num
 }
 
 export function rerankScore(query: string, chunk: Pick<DocumentChunkRecord, 'content' | 'headingPath'>): number {
-  const headingScore = keywordScore(query, chunk.headingPath.join(' '));
-  const contentScore = keywordScore(query, chunk.content);
-  return Math.max(headingScore, contentScore * 0.5);
+  return defaultReranker.rerank(query, chunk);
 }
 
 export function rerankedScore(originalScore: number, rerankScoreValue: number): number {

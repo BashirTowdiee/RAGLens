@@ -36,6 +36,7 @@ The current implementation provides:
 - `rag-api` health endpoint at `GET /api/v1/health`
 - `eval-api` health endpoint at `GET /api/v1/health`
 - `rag-api` Markdown document ingestion, retrieval, query, and trace endpoints
+- `rag-api` advanced retrieval modes (`vector`, `keyword`, `hybrid`, `hybrid_reranked`) with query rewriting, context packing, and configurable reranker adapter controls
 - `rag-api` request correlation and structured provider-failure envelopes with `x-request-id`
 - Postgres-backed document storage with `rag.documents` and `rag.document_chunks`
 - Postgres-backed eval persistence for datasets, eval runs, case results, comparisons, and CI gate runs
