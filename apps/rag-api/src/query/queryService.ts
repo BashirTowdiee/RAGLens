@@ -126,10 +126,10 @@ export class QueryService {
         model: providerResult.model,
         status: 'succeeded',
         latencyMs: Date.now() - providerStartTime,
-        promptTokens: null,
-        completionTokens: null,
-        totalTokens: null,
-        estimatedCostUsd: null,
+        promptTokens: providerResult.usage?.promptTokens ?? null,
+        completionTokens: providerResult.usage?.completionTokens ?? null,
+        totalTokens: providerResult.usage?.totalTokens ?? null,
+        estimatedCostUsd: providerResult.usage?.estimatedCostUsd ?? null,
         errorCode: null
       };
       const usage = {

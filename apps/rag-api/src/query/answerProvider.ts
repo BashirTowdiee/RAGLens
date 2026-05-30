@@ -9,6 +9,12 @@ export type AnswerProviderResult = {
   answer: string;
   provider: string;
   model: string;
+  usage?: {
+    promptTokens: number | null;
+    completionTokens: number | null;
+    totalTokens: number | null;
+    estimatedCostUsd: number | null;
+  };
 };
 
 export type AnswerProviderErrorCode = 'provider_unavailable' | 'provider_timeout' | 'provider_invalid_response';

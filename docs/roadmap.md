@@ -1087,8 +1087,8 @@ Implementation status:
 
 ```text
 In progress.
-Implemented in-repo: provider factory with deterministic/openai/openrouter/anthropic/ollama adapters, provider-specific model defaults, and normalized provider error mapping.
-Remaining: pricing model config and provider comparison run presets.
+Implemented in-repo: provider factory with deterministic/openai/openrouter/anthropic/ollama adapters, provider-specific model defaults, normalized provider error mapping, and token-based cost estimation config.
+Remaining: provider comparison run presets.
 ```
 
 Add providers:

@@ -32,6 +32,7 @@ apps:
       - apps/rag-api/src/config.ts
       - apps/rag-api/src/query/queryService.ts
       - apps/rag-api/src/query/providerFactory.ts
+      - apps/rag-api/src/query/modelPricing.ts
       - apps/rag-api/src/documents/postgresDocumentRepository.ts
       - apps/rag-api/src/documents/reranker.ts
     tests:

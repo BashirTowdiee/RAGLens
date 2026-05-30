@@ -9,6 +9,8 @@ const baseConfig: AppConfig = {
   DOCUMENT_REPOSITORY: 'memory',
   ANSWER_PROVIDER: 'deterministic',
   ANSWER_MODEL: undefined,
+  ANSWER_INPUT_COST_PER_1M_TOKENS: undefined,
+  ANSWER_OUTPUT_COST_PER_1M_TOKENS: undefined,
   ANSWER_PROVIDER_TIMEOUT_MS: 10000,
   PROMPT_CONTEXT_TOKEN_BUDGET: 1200,
   RERANKER_PROVIDER: 'deterministic',
@@ -126,5 +128,43 @@ describe('createAnswerProvider', () => {
 
     expect(result.provider).toBe('anthropic');
     expect(result.answer).toBe('Answer from anthropic.');
+  });
+
+  it('captures usage tokens and estimated cost for openai-compatible responses', async () => {
+    const provider = createAnswerProvider({
+      ...baseConfig,
+      ANSWER_PROVIDER: 'openai',
+      OPENAI_API_KEY: 'test-key',
+      ANSWER_INPUT_COST_PER_1M_TOKENS: 0.5,
+      ANSWER_OUTPUT_COST_PER_1M_TOKENS: 1.5
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: 'Answer from provider.' } }],
+          usage: {
+            prompt_tokens: 2000,
+            completion_tokens: 1000,
+            total_tokens: 3000
+          }
+        })
+      } as unknown as Response)
+    );
+
+    const result = await provider.generate({
+      question: 'What is the policy?',
+      prompt: prompt()
+    });
+
+    expect(result.usage).toEqual({
+      promptTokens: 2000,
+      completionTokens: 1000,
+      totalTokens: 3000,
+      estimatedCostUsd: 0.0025
+    });
   });
 });

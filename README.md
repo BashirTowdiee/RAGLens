@@ -38,6 +38,7 @@ The current implementation provides:
 - `rag-api` Markdown document ingestion, retrieval, query, and trace endpoints
 - `rag-api` advanced retrieval modes (`vector`, `keyword`, `hybrid`, `hybrid_reranked`) with query rewriting, context packing, and configurable reranker adapter controls
 - `rag-api` provider runtime adapters for deterministic/OpenAI/OpenRouter/Anthropic/Ollama query answering
+- `rag-api` provider token usage + optional pricing configuration for estimated cost telemetry
 - `rag-api` request correlation and structured provider-failure envelopes with `x-request-id`
 - Postgres-backed document storage with `rag.documents` and `rag.document_chunks`
 - Postgres-backed eval persistence for datasets, eval runs, case results, comparisons, and CI gate runs

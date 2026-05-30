@@ -19,6 +19,22 @@ const failingProvider: AnswerProvider = {
   }
 };
 
+const usageProvider: AnswerProvider = {
+  async generate(input) {
+    return {
+      answer: `Answer for ${input.question}`,
+      provider: 'usage-provider',
+      model: 'usage-model-v1',
+      usage: {
+        promptTokens: 1200,
+        completionTokens: 300,
+        totalTokens: 1500,
+        estimatedCostUsd: 0.0012
+      }
+    };
+  }
+};
+
 describe('query provider error handling', () => {
   it('returns a structured provider failure response and persists a failed trace', async () => {
     const app = Fastify({ logger: false });
@@ -110,6 +126,46 @@ describe('query provider error handling', () => {
         provider: 'test-provider',
         retryable: true
       }
+    });
+  });
+
+  it('persists provider usage and estimated cost when available', async () => {
+    const app = Fastify({ logger: false });
+    const documentRepository = new InMemoryDocumentRepository();
+    const traceRepository = new InMemoryRetrievalTraceRepository();
+    const queryTraceRepository = new InMemoryQueryTraceRepository();
+    const queryService = new QueryService(
+      documentRepository,
+      traceRepository,
+      queryTraceRepository,
+      usageProvider
+    );
+
+    await registerDocumentRoutes(app, documentRepository, traceRepository);
+    await registerQueryRoutes(app, queryService, queryTraceRepository);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/query',
+      payload: {
+        question: 'How are usage costs tracked?'
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const traceResponse = await app.inject({
+      method: 'GET',
+      url: `/api/v1/queries/${response.json().traceId}`
+    });
+
+    expect(traceResponse.statusCode).toBe(200);
+    expect(traceResponse.json().trace.providerCall).toMatchObject({
+      provider: 'usage-provider',
+      model: 'usage-model-v1',
+      promptTokens: 1200,
+      completionTokens: 300,
+      totalTokens: 1500,
+      estimatedCostUsd: 0.0012
     });
   });
 });

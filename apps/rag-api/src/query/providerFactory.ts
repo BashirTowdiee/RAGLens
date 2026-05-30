@@ -5,6 +5,7 @@ import {
   type AnswerProvider,
   type AnswerProviderResult
 } from './answerProvider.js';
+import { estimateCostUsd, type ModelPricingConfig, type TokenUsage } from './modelPricing.js';
 import type { QueryPrompt } from './promptBuilder.js';
 
 const DEFAULT_MODELS = {
@@ -22,6 +23,7 @@ type OpenAiCompatibleProviderConfig = {
   apiKey?: string;
   baseUrl: string;
   model: string;
+  pricing: ModelPricingConfig;
 };
 
 type AnthropicProviderConfig = {
@@ -29,9 +31,15 @@ type AnthropicProviderConfig = {
   apiKey?: string;
   baseUrl: string;
   model: string;
+  pricing: ModelPricingConfig;
 };
 
 export function createAnswerProvider(config: AppConfig): AnswerProvider {
+  const pricing = {
+    inputCostPer1MTokens: config.ANSWER_INPUT_COST_PER_1M_TOKENS,
+    outputCostPer1MTokens: config.ANSWER_OUTPUT_COST_PER_1M_TOKENS
+  };
+
   if (config.ANSWER_PROVIDER === 'deterministic') {
     return new DeterministicAnswerProvider();
   }
@@ -41,7 +49,8 @@ export function createAnswerProvider(config: AppConfig): AnswerProvider {
       provider: 'anthropic',
       apiKey: config.ANTHROPIC_API_KEY,
       baseUrl: config.ANTHROPIC_BASE_URL,
-      model: config.ANSWER_MODEL ?? DEFAULT_MODELS.anthropic
+      model: config.ANSWER_MODEL ?? DEFAULT_MODELS.anthropic,
+      pricing
     });
   }
 
@@ -50,7 +59,8 @@ export function createAnswerProvider(config: AppConfig): AnswerProvider {
       provider: 'openai',
       apiKey: config.OPENAI_API_KEY,
       baseUrl: config.OPENAI_BASE_URL,
-      model: config.ANSWER_MODEL ?? DEFAULT_MODELS.openai
+      model: config.ANSWER_MODEL ?? DEFAULT_MODELS.openai,
+      pricing
     });
   }
 
@@ -59,14 +69,16 @@ export function createAnswerProvider(config: AppConfig): AnswerProvider {
       provider: 'openrouter',
       apiKey: config.OPENROUTER_API_KEY,
       baseUrl: config.OPENROUTER_BASE_URL,
-      model: config.ANSWER_MODEL ?? DEFAULT_MODELS.openrouter
+      model: config.ANSWER_MODEL ?? DEFAULT_MODELS.openrouter,
+      pricing
     });
   }
 
   return new OpenAiCompatibleAnswerProvider({
     provider: 'ollama',
     baseUrl: config.OLLAMA_BASE_URL,
-    model: config.ANSWER_MODEL ?? DEFAULT_MODELS.ollama
+    model: config.ANSWER_MODEL ?? DEFAULT_MODELS.ollama,
+    pricing
   });
 }
 
@@ -107,7 +119,8 @@ class OpenAiCompatibleAnswerProvider implements AnswerProvider {
     return {
       answer,
       provider: this.config.provider,
-      model: this.config.model
+      model: this.config.model,
+      usage: enrichTokenUsage(extractOpenAiCompatibleUsage(body), this.config.pricing)
     };
   }
 }
@@ -149,7 +162,8 @@ class AnthropicAnswerProvider implements AnswerProvider {
     return {
       answer,
       provider: this.config.provider,
-      model: this.config.model
+      model: this.config.model,
+      usage: enrichTokenUsage(extractAnthropicUsage(body), this.config.pricing)
     };
   }
 }
@@ -250,6 +264,31 @@ function extractOpenAiCompatibleAnswer(body: unknown): string {
   return normalizeTextContent(message['content']);
 }
 
+function extractOpenAiCompatibleUsage(body: unknown): TokenUsage {
+  if (!isObject(body)) {
+    return {
+      promptTokens: null,
+      completionTokens: null,
+      totalTokens: null
+    };
+  }
+
+  const usage = body['usage'];
+  if (!isObject(usage)) {
+    return {
+      promptTokens: null,
+      completionTokens: null,
+      totalTokens: null
+    };
+  }
+
+  return {
+    promptTokens: toOptionalNumber(usage['prompt_tokens']),
+    completionTokens: toOptionalNumber(usage['completion_tokens']),
+    totalTokens: toOptionalNumber(usage['total_tokens'])
+  };
+}
+
 function extractAnthropicAnswer(body: unknown): string {
   if (!isObject(body)) {
     return '';
@@ -266,6 +305,52 @@ function extractAnthropicAnswer(body: unknown): string {
   }
 
   return normalizeTextContent(firstBlock['text']);
+}
+
+function extractAnthropicUsage(body: unknown): TokenUsage {
+  if (!isObject(body)) {
+    return {
+      promptTokens: null,
+      completionTokens: null,
+      totalTokens: null
+    };
+  }
+
+  const usage = body['usage'];
+  if (!isObject(usage)) {
+    return {
+      promptTokens: null,
+      completionTokens: null,
+      totalTokens: null
+    };
+  }
+
+  const promptTokens = toOptionalNumber(usage['input_tokens']);
+  const completionTokens = toOptionalNumber(usage['output_tokens']);
+  const totalTokens =
+    promptTokens !== null && completionTokens !== null
+      ? promptTokens + completionTokens
+      : null;
+
+  return {
+    promptTokens,
+    completionTokens,
+    totalTokens
+  };
+}
+
+function enrichTokenUsage(
+  usage: TokenUsage,
+  pricing: ModelPricingConfig
+): AnswerProviderResult['usage'] {
+  return {
+    ...usage,
+    estimatedCostUsd: estimateCostUsd(usage, pricing)
+  };
+}
+
+function toOptionalNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

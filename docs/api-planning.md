@@ -715,6 +715,8 @@ Provider runtime selection:
 ```text
 - provider is selected via service config (ANSWER_PROVIDER / ANSWER_MODEL)
 - supported providers: deterministic, openai, anthropic, openrouter, ollama
+- optional pricing config (ANSWER_INPUT_COST_PER_1M_TOKENS / ANSWER_OUTPUT_COST_PER_1M_TOKENS)
+  enables estimatedCostUsd telemetry from provider token usage
 - provider failures are normalized into stable error codes:
   provider_unavailable | provider_timeout | provider_invalid_response
 ```

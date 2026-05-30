@@ -9,6 +9,8 @@ const ConfigSchema = z.object({
     .enum(['deterministic', 'openai', 'anthropic', 'openrouter', 'ollama'])
     .default('deterministic'),
   ANSWER_MODEL: z.string().optional(),
+  ANSWER_INPUT_COST_PER_1M_TOKENS: z.coerce.number().nonnegative().optional(),
+  ANSWER_OUTPUT_COST_PER_1M_TOKENS: z.coerce.number().nonnegative().optional(),
   ANSWER_PROVIDER_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
   PROMPT_CONTEXT_TOKEN_BUDGET: z.coerce.number().int().positive().default(1200),
   RERANKER_PROVIDER: z.enum(['deterministic', 'none']).default('deterministic'),
