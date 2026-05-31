@@ -48,9 +48,19 @@ export default function HomePage() {
         </article>
 
         <article className="panel">
+          <h2 style={{ marginTop: 0 }}>Datasets</h2>
+          <p style={{ color: '#475569', lineHeight: 1.6 }}>
+            Build eval datasets and test cases, then use them to create and execute eval runs.
+          </p>
+          <Link href="/datasets" className="primary-link">
+            Manage datasets
+          </Link>
+        </article>
+
+        <article className="panel">
           <h2 style={{ marginTop: 0 }}>Eval run inspector</h2>
           <p style={{ color: '#475569', lineHeight: 1.6 }}>
-            Review evaluation run status, pass rate, judge enablement, and failure type rollups from eval-api.
+            Create and execute eval runs, then review status, pass rate, judge enablement, and failure type rollups.
           </p>
           <Link href="/eval-runs" className="primary-link">
             View eval runs

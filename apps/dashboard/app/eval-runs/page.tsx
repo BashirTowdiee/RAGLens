@@ -49,6 +49,12 @@ export default async function EvalRunsPage({ searchParams }: EvalRunsPageProps) 
         <code>{getEvalApiDisplayBaseUrl()}/api/v1/eval-runs</code>.
       </p>
 
+      <section style={{ marginTop: '24px', marginBottom: '24px' }}>
+        <Link href="/eval-runs/new" className="primary-link">
+          Create eval run
+        </Link>
+      </section>
+
       {!result.ok ? (
         <section className="panel error-panel">
           <h2>Unable to load eval runs</h2>
@@ -60,9 +66,7 @@ export default async function EvalRunsPage({ searchParams }: EvalRunsPageProps) 
       ) : result.evalRuns.length === 0 ? (
         <section className="panel empty-panel">
           <h2>No eval runs yet</h2>
-          <p>
-            Create an eval run through eval-api, execute the dataset, then use this view to inspect scoring rollups.
-          </p>
+          <p>Create an eval run, execute it, then use this view to inspect scoring rollups.</p>
         </section>
       ) : (
         <>

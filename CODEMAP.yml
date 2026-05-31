@@ -70,13 +70,16 @@ apps:
   - id: dashboard
     path: apps/dashboard
     stack: Next.js, React, TypeScript
-    purpose: UI for documents, retrieval, traces, and eval runs.
+    purpose: UI for documents, retrieval, datasets, traces, and eval runs.
     public_entry_points:
       - apps/dashboard/app/layout.tsx
       - apps/dashboard/app/page.tsx
       - apps/dashboard/app/documents/page.tsx
       - apps/dashboard/app/retrieval/page.tsx
       - apps/dashboard/app/eval-runs/page.tsx
+      - apps/dashboard/app/datasets/page.tsx
+      - apps/dashboard/app/datasets/[datasetId]/page.tsx
+      - apps/dashboard/app/eval-runs/new/page.tsx
       - apps/dashboard/app/devtools/page.tsx
       - apps/dashboard/app/api/devtools/route.ts
     important_files:

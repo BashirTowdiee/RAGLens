@@ -129,6 +129,23 @@ http://localhost:3000/documents
 
 See `docs/seed-ingestion.md` for the full workflow and troubleshooting notes.
 
+## Local eval workflow
+
+1. `docker compose up --build`
+2. `npm --workspace apps/rag-api run seed:documents`
+3. Open [http://localhost:3000/datasets](http://localhost:3000/datasets)
+4. Create a dataset
+5. Add test cases
+6. Open [http://localhost:3000/eval-runs/new](http://localhost:3000/eval-runs/new)
+7. Create an eval run
+8. Open eval run detail
+9. Execute run
+10. Inspect case results
+
+`/devtools` remains available for low-level API inspection, but normal eval execution should now run through dashboard datasets and eval run pages.
+
+
+
 ## Development commands
 
 ```bash

@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import {
   EvalCaseResult,
+  executeEvalRun,
   fetchEvalCaseResults,
   fetchEvalRun,
   getEvalApiBaseUrl
@@ -8,6 +10,7 @@ import {
 
 type EvalRunDetailPageProps = {
   params: Promise<{ evalRunId: string }>;
+  searchParams?: Promise<{ executeError?: string; executeSuccess?: string }>;
 };
 
 function formatPercent(value: number): string {
@@ -44,8 +47,44 @@ function getCaseTone(result: EvalCaseResult): string {
   return '#166534';
 }
 
-export default async function EvalRunDetailPage({ params }: EvalRunDetailPageProps) {
+async function executeEvalRunAction(formData: FormData) {
+  'use server';
+
+  const evalRunId = String(formData.get('evalRunId') ?? '').trim();
+  const maxCasesInput = String(formData.get('maxCases') ?? '').trim();
+  const maxCostUsdInput = String(formData.get('maxCostUsd') ?? '').trim();
+
+  if (!evalRunId) {
+    redirect('/eval-runs?comparisonError=Missing%20eval%20run%20id.');
+  }
+
+  let maxCases: number | undefined;
+  if (maxCasesInput) {
+    maxCases = Number(maxCasesInput);
+    if (!Number.isFinite(maxCases) || maxCases <= 0) {
+      redirect(`/eval-runs/${evalRunId}?executeError=${encodeURIComponent('maxCases must be a positive number.')}`);
+    }
+  }
+
+  let maxCostUsd: number | undefined;
+  if (maxCostUsdInput) {
+    maxCostUsd = Number(maxCostUsdInput);
+    if (!Number.isFinite(maxCostUsd) || maxCostUsd < 0) {
+      redirect(`/eval-runs/${evalRunId}?executeError=${encodeURIComponent('maxCostUsd must be zero or positive.')}`);
+    }
+  }
+
+  const result = await executeEvalRun(evalRunId, { maxCases, maxCostUsd });
+  if (!result.ok) {
+    redirect(`/eval-runs/${evalRunId}?executeError=${encodeURIComponent(result.error)}`);
+  }
+
+  redirect(`/eval-runs/${evalRunId}?executeSuccess=1`);
+}
+
+export default async function EvalRunDetailPage({ params, searchParams }: EvalRunDetailPageProps) {
   const { evalRunId } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
   const [runResult, caseResults] = await Promise.all([
     fetchEvalRun(evalRunId),
     fetchEvalCaseResults(evalRunId)
@@ -78,6 +117,30 @@ export default async function EvalRunDetailPage({ params }: EvalRunDetailPagePro
             <code>{runResult.evalRun.rag_config_id}</code> · Status{' '}
             <strong>{runResult.evalRun.status}</strong>
           </p>
+
+          <section className="panel" style={{ marginBottom: '24px' }}>
+            <h2 style={{ marginTop: 0 }}>Execute run</h2>
+            <form action={executeEvalRunAction} className="comparison-form" style={{ gridTemplateColumns: 'repeat(2, minmax(200px, 1fr)) auto' }}>
+              <input type="hidden" name="evalRunId" value={evalRunId} />
+              <label>
+                maxCases
+                <input name="maxCases" type="number" min={1} step={1} defaultValue={5} />
+              </label>
+              <label>
+                maxCostUsd (optional)
+                <input name="maxCostUsd" type="number" min={0} step="0.0001" placeholder="0.01" />
+              </label>
+              <button type="submit">Execute run</button>
+            </form>
+            {resolvedSearchParams.executeError ? (
+              <p style={{ color: '#b91c1c' }}>
+                Execute eval run failed: {resolvedSearchParams.executeError}
+              </p>
+            ) : null}
+            {resolvedSearchParams.executeSuccess ? (
+              <p style={{ color: '#166534' }}>Eval run executed successfully.</p>
+            ) : null}
+          </section>
 
           <section className="panel">
             <dl className="metric-grid">
@@ -175,6 +238,10 @@ export default async function EvalRunDetailPage({ params }: EvalRunDetailPagePro
                       Missing expected sources:{' '}
                       {result.scores.retrieval.missing_expected_sources.join(', ')}
                     </p>
+                  ) : null}
+
+                  {result.error_message ? (
+                    <p style={{ color: '#b91c1c' }}>Execution error: {result.error_message}</p>
                   ) : null}
 
                   {result.judge_error ? (
