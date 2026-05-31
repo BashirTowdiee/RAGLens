@@ -43,14 +43,8 @@ export default async function EvalRunNewPage({ searchParams }: EvalRunNewPagePro
   const selectedDatasetId = resolvedSearchParams.datasetId;
 
   return (
-    <main style={{ padding: '48px', maxWidth: '960px', margin: '0 auto' }}>
-      <Link href="/eval-runs" style={{ color: '#475569', textDecoration: 'none' }}>
-        ← Eval runs
-      </Link>
-      <p style={{ marginTop: '32px', marginBottom: 0, color: '#475569', fontWeight: 600 }}>
-        Evaluation
-      </p>
-      <h1 style={{ marginTop: '12px', fontSize: '44px', lineHeight: 1.05 }}>Create eval run</h1>
+    <div className="stack eval-runs-stack">
+      <Link href="/eval-runs" className="button-ghost">← Eval runs</Link>
 
       {!datasetsResult.ok ? (
         <section className="panel error-panel">
@@ -62,106 +56,56 @@ export default async function EvalRunNewPage({ searchParams }: EvalRunNewPagePro
         <section className="panel empty-panel">
           <h2>No datasets available</h2>
           <p>Create a dataset before creating eval runs.</p>
-          <Link href="/datasets" className="primary-link">
-            Open datasets
-          </Link>
+          <Link href="/datasets" className="button">Open datasets</Link>
         </section>
       ) : (
-        <section className="panel">
-          <form action={createEvalRunAction} style={{ display: 'grid', gap: '16px' }}>
-            <label style={{ color: '#475569', display: 'grid', fontWeight: 700, gap: '8px' }}>
-              Dataset
-              <select
-                name="dataset_id"
-                defaultValue={
-                  selectedDatasetId && datasetsResult.datasets.some((d) => d.id === selectedDatasetId)
-                    ? selectedDatasetId
-                    : datasetsResult.datasets[0]?.id
-                }
-                required
-                style={{
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '12px',
-                  color: '#0f172a',
-                  font: 'inherit',
-                  padding: '12px 14px'
-                }}
-              >
-                {datasetsResult.datasets.map((dataset) => (
-                  <option key={dataset.id} value={dataset.id}>
-                    {dataset.name} · {dataset.version} · {dataset.id}
-                  </option>
-                ))}
-              </select>
-            </label>
+        <section className="card">
+          <div className="card-header"><h2>Create eval run</h2></div>
+          <div className="card-body">
+            <form action={createEvalRunAction} className="eval-runs-new-form">
+              <label>
+                Dataset
+                <select
+                  name="dataset_id"
+                  defaultValue={
+                    selectedDatasetId && datasetsResult.datasets.some((d) => d.id === selectedDatasetId)
+                      ? selectedDatasetId
+                      : datasetsResult.datasets[0]?.id
+                  }
+                  required
+                >
+                  {datasetsResult.datasets.map((dataset) => (
+                    <option key={dataset.id} value={dataset.id}>
+                      {dataset.name} · {dataset.version} · {dataset.id}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <label style={{ color: '#475569', display: 'grid', fontWeight: 700, gap: '8px' }}>
-              Name
-              <input
-                name="name"
-                placeholder="Smoke run"
-                style={{
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '12px',
-                  color: '#0f172a',
-                  font: 'inherit',
-                  padding: '12px 14px'
-                }}
-              />
-            </label>
+              <label>
+                Name
+                <input name="name" placeholder="Smoke run" />
+              </label>
 
-            <label style={{ color: '#475569', display: 'grid', fontWeight: 700, gap: '8px' }}>
-              rag_config_id
-              <input
-                name="rag_config_id"
-                defaultValue="default"
-                required
-                style={{
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '12px',
-                  color: '#0f172a',
-                  font: 'inherit',
-                  padding: '12px 14px'
-                }}
-              />
-            </label>
+              <label>
+                rag_config_id
+                <input name="rag_config_id" defaultValue="default" required />
+              </label>
 
-            <label
-              style={{
-                color: '#475569',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                fontWeight: 700
-              }}
-            >
-              <input name="judge_enabled" type="checkbox" defaultChecked />
-              judge_enabled
-            </label>
+              <label className="eval-runs-checkbox-row">
+                <input name="judge_enabled" type="checkbox" defaultChecked />
+                judge_enabled
+              </label>
 
-            <button
-              type="submit"
-              style={{
-                background: '#0f172a',
-                border: 0,
-                borderRadius: '12px',
-                color: 'white',
-                cursor: 'pointer',
-                font: 'inherit',
-                fontWeight: 700,
-                padding: '13px 18px',
-                width: 'fit-content'
-              }}
-            >
-              Create eval run
-            </button>
-          </form>
+              <button type="submit">Create eval run</button>
+            </form>
 
-          {resolvedSearchParams.createError ? (
-            <p style={{ color: '#b91c1c' }}>Create eval run failed: {resolvedSearchParams.createError}</p>
-          ) : null}
+            {resolvedSearchParams.createError ? (
+              <p className="eval-runs-error">Create eval run failed: {resolvedSearchParams.createError}</p>
+            ) : null}
+          </div>
         </section>
       )}
-    </main>
+    </div>
   );
 }

@@ -34,25 +34,20 @@ export default async function EvalRunsPage({ searchParams }: EvalRunsPageProps) 
   const comparisonError = resolvedSearchParams.comparisonError;
 
   return (
-    <main style={{ padding: '48px', maxWidth: '1120px', margin: '0 auto' }}>
-      <Link href="/" style={{ color: '#475569', textDecoration: 'none' }}>
-        ← Dashboard
-      </Link>
-      <p style={{ marginTop: '32px', marginBottom: 0, color: '#475569', fontWeight: 600 }}>
-        Evaluation
-      </p>
-      <h1 style={{ marginTop: '12px', fontSize: '44px', lineHeight: 1.05 }}>
-        Eval runs
-      </h1>
-      <p style={{ fontSize: '18px', color: '#475569', lineHeight: 1.6 }}>
-        Inspect run status, pass rate, case counts, and failure type rollups from{' '}
-        <code>{getEvalApiDisplayBaseUrl()}/api/v1/eval-runs</code>.
-      </p>
-
-      <section style={{ marginTop: '24px', marginBottom: '24px' }}>
-        <Link href="/eval-runs/new" className="primary-link">
-          Create eval run
-        </Link>
+    <div className="stack eval-runs-stack">
+      <section className="card">
+        <div className="card-header">
+          <h2>Eval runs</h2>
+          <Link href="/eval-runs/new" className="button">
+            Create eval run
+          </Link>
+        </div>
+        <div className="card-body">
+          <p className="eval-runs-note">
+            Inspect run status, pass rate, case counts, and failure type rollups from{' '}
+            <code>{getEvalApiDisplayBaseUrl()}/api/v1/eval-runs</code>.
+          </p>
+        </div>
       </section>
 
       {!result.ok ? (
@@ -70,15 +65,18 @@ export default async function EvalRunsPage({ searchParams }: EvalRunsPageProps) 
         </section>
       ) : (
         <>
-          <section className="panel comparison-form-panel">
-            <h2>Create comparison</h2>
-            <p>
+          <section className="card comparison-form-panel">
+            <div className="card-header">
+              <h2>Create comparison</h2>
+            </div>
+            <div className="card-body">
+            <p className="eval-runs-note">
               Compare two runs from the same dataset to inspect metric deltas and improved or regressed cases.
             </p>
             {comparisonError ? (
-              <p style={{ color: '#b91c1c' }}>Comparison failed: {comparisonError}</p>
+              <p className="eval-runs-error">Comparison failed: {comparisonError}</p>
             ) : null}
-            <form action={createComparisonAction} className="comparison-form">
+            <form action={createComparisonAction} className="comparison-form eval-runs-comparison-form">
               <label>
                 Baseline run
                 <select name="baselineEvalRunId" required>
@@ -101,19 +99,21 @@ export default async function EvalRunsPage({ searchParams }: EvalRunsPageProps) 
               </label>
               <button type="submit">Create comparison</button>
             </form>
+            </div>
           </section>
 
-          <section style={{ display: 'grid', gap: '16px', marginTop: '32px' }}>
+          <section className="eval-runs-list">
             {result.evalRuns.map((run) => (
-              <article key={run.id} className="panel">
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '24px' }}>
+              <article key={run.id} className="card">
+                <div className="card-body eval-runs-item">
+                <div className="eval-runs-item-header">
                   <div>
-                    <h2 style={{ marginTop: 0 }}>{run.name || run.id}</h2>
-                    <p style={{ color: '#475569', marginBottom: 0 }}>
+                    <h3>{run.name || run.id}</h3>
+                    <p className="eval-runs-note">
                       Dataset <code>{run.dataset_id}</code> · Config <code>{run.rag_config_id}</code>
                     </p>
                   </div>
-                  <strong>{run.status}</strong>
+                  <strong className="eval-runs-status">{run.status}</strong>
                 </div>
 
                 <dl className="metric-grid">
@@ -144,7 +144,7 @@ export default async function EvalRunsPage({ searchParams }: EvalRunsPageProps) 
                 </dl>
 
                 {Object.keys(run.summary.failure_types).length > 0 ? (
-                  <p style={{ color: '#475569' }}>
+                  <p className="eval-runs-note">
                     Failure types:{' '}
                     {Object.entries(run.summary.failure_types)
                       .map(([type, count]) => `${type}: ${count}`)
@@ -152,14 +152,15 @@ export default async function EvalRunsPage({ searchParams }: EvalRunsPageProps) 
                   </p>
                 ) : null}
 
-                <Link href={`/eval-runs/${run.id}`} className="primary-link">
+                <Link href={`/eval-runs/${run.id}`} className="button">
                   Open run detail
                 </Link>
+                </div>
               </article>
             ))}
           </section>
         </>
       )}
-    </main>
+    </div>
   );
 }

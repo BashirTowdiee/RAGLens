@@ -127,6 +127,12 @@ Then inspect indexed documents in the dashboard:
 http://localhost:3000/documents
 ```
 
+You can also upload ad-hoc Markdown/text files from the dashboard UI:
+
+```text
+http://localhost:3000/documents/upload
+```
+
 See `docs/seed-ingestion.md` for the full workflow and troubleshooting notes.
 
 ## Local eval workflow
@@ -143,6 +149,23 @@ See `docs/seed-ingestion.md` for the full workflow and troubleshooting notes.
 10. Inspect case results
 
 `/devtools` remains available for low-level API inspection, but normal eval execution should now run through dashboard datasets and eval run pages.
+
+## Dashboard shell workflow
+
+The dashboard now uses a persistent application shell:
+
+- Left sidebar grouped by product area: Overview, Corpus, Evaluation, Operations
+- Sticky topbar with route-aware breadcrumb, title, and page actions
+- Content area for page-specific cards, forms, and detail panels
+
+Recommended navigation flow:
+
+1. Open Overview (`/`) for service and workflow context
+2. Inspect corpus in Documents (`/documents`) and Retrieval (`/retrieval`)
+3. Build datasets in Datasets (`/datasets`)
+4. Create and execute eval runs from Eval Runs (`/eval-runs`, `/eval-runs/new`)
+5. Inspect run case results and comparisons (`/comparisons/*`)
+6. Use Devtools (`/devtools`) only for direct API debugging
 
 
 

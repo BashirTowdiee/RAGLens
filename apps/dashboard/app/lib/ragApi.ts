@@ -66,6 +66,25 @@ export type RetrievalTraceResult =
   | { ok: true; trace: RetrievalTraceRecord }
   | { ok: false; error: string };
 
+export type IngestDocumentRequest = {
+  sourceId: string;
+  title: string;
+  sourceType: 'markdown';
+  sourceUri?: string;
+  version?: string;
+  content: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type IngestDocumentResponse = {
+  document: DocumentRecord;
+  chunks: DocumentChunkRecord[];
+};
+
+export type IngestDocumentResult =
+  | { ok: true; status: number; data: IngestDocumentResponse }
+  | { ok: false; status: number; error: string };
+
 export function getRagApiBaseUrl(): string {
   return (
     process.env.RAG_API_BASE_URL ??
@@ -193,6 +212,37 @@ export async function fetchRetrievalTrace(traceId: string): Promise<RetrievalTra
     return {
       ok: false,
       error: error instanceof Error ? error.message : 'Unable to fetch retrieval trace.'
+    };
+  }
+}
+
+export async function ingestDocument(payload: IngestDocumentRequest): Promise<IngestDocumentResult> {
+  try {
+    const response = await fetch(`${getRagApiBaseUrl()}/api/v1/documents/ingest`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify(payload),
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as { message?: string } | null;
+      return {
+        ok: false,
+        status: response.status,
+        error: body?.message ?? `rag-api returned HTTP ${response.status}`
+      };
+    }
+
+    const body = (await response.json()) as IngestDocumentResponse;
+    return { ok: true, status: response.status, data: body };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 502,
+      error: error instanceof Error ? error.message : 'Unable to ingest document.'
     };
   }
 }

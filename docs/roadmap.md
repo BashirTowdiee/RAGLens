@@ -287,6 +287,54 @@ Do not build yet:
 
 ---
 
+# Phase 3B: Dashboard document upload
+
+Goal:
+
+```text
+Allow users to ingest markdown/text documents from the dashboard before embeddings work begins.
+```
+
+Build:
+
+```text
+- dashboard upload page for documents
+- file picker for .md/.markdown/.txt
+- browser text preview before submit
+- client-side validation and clear user-facing errors
+- dashboard call to existing rag-api /api/v1/documents/ingest endpoint
+- success redirect/link to document detail page
+```
+
+Placement:
+
+```text
+This phase is intentionally before Phase 4 embeddings and vector retrieval.
+```
+
+Acceptance criteria:
+
+```text
+- user can upload .md/.markdown/.txt from dashboard
+- dashboard calls rag-api ingestion endpoint
+- invalid/empty files show clear errors
+- successful upload links or redirects to document detail
+- document detail shows chunks for uploaded document
+- no embeddings are required
+```
+
+Do not build yet:
+
+```text
+- PDF/DOCX parsing
+- OCR
+- async/background ingestion queues
+- re-index workflows
+- embedding/vector retrieval dependencies
+```
+
+---
+
 # Phase 4: Embeddings and vector retrieval
 
 Goal:

@@ -35,24 +35,19 @@ export default async function DatasetsPage({ searchParams }: DatasetsPageProps) 
   const createError = resolvedSearchParams.createError;
 
   return (
-    <main style={{ padding: '48px', maxWidth: '1120px', margin: '0 auto' }}>
-      <Link href="/" style={{ color: '#475569', textDecoration: 'none' }}>
-        ← Dashboard
-      </Link>
-      <p style={{ marginTop: '32px', marginBottom: 0, color: '#475569', fontWeight: 600 }}>
-        Evaluation
-      </p>
-      <h1 style={{ marginTop: '12px', fontSize: '44px', lineHeight: 1.05 }}>Datasets</h1>
-      <p style={{ fontSize: '18px', color: '#475569', lineHeight: 1.6 }}>
-        Create and manage eval datasets from <code>{getEvalApiDisplayBaseUrl()}/api/v1/datasets</code>.
-      </p>
-
-      <section className="panel" style={{ marginTop: '24px' }}>
-        <h2 style={{ marginTop: 0 }}>Create dataset</h2>
+    <div className="stack datasets-stack">
+      <section className="card">
+        <div className="card-header">
+          <h2>Create dataset</h2>
+        </div>
+        <div className="card-body">
+        <p className="datasets-note">
+          Create and manage eval datasets from <code>{getEvalApiDisplayBaseUrl()}/api/v1/datasets</code>.
+        </p>
         <form
           action={createDatasetAction}
-          className="comparison-form"
-          style={{ gridTemplateColumns: 'repeat(3, minmax(200px, 1fr)) auto' }}
+          className="comparison-form datasets-create-form"
+          id="create-dataset"
         >
           <label>
             Name
@@ -68,11 +63,12 @@ export default async function DatasetsPage({ searchParams }: DatasetsPageProps) 
           </label>
           <button type="submit">Create dataset</button>
         </form>
-        {createError ? <p style={{ color: '#b91c1c' }}>Create dataset failed: {createError}</p> : null}
+        {createError ? <p className="datasets-error">Create dataset failed: {createError}</p> : null}
+        </div>
       </section>
 
       {!result.ok ? (
-        <section className="panel error-panel" style={{ marginTop: '24px' }}>
+        <section className="panel error-panel">
           <h2>Unable to load datasets</h2>
           <p>{result.error}</p>
           <p>
@@ -80,26 +76,28 @@ export default async function DatasetsPage({ searchParams }: DatasetsPageProps) 
           </p>
         </section>
       ) : result.datasets.length === 0 ? (
-        <section className="panel empty-panel" style={{ marginTop: '24px' }}>
+        <section className="panel empty-panel">
           <h2>No datasets yet</h2>
           <p>Create a dataset to start building test cases and eval runs.</p>
         </section>
       ) : (
-        <section style={{ display: 'grid', gap: '16px', marginTop: '24px' }}>
+        <section className="datasets-list">
           {result.datasets.map((dataset) => (
-            <article key={dataset.id} className="panel">
-              <h2 style={{ marginTop: 0 }}>{dataset.name}</h2>
-              <p style={{ color: '#475569' }}>
-                Version <code>{dataset.version}</code> · Status <strong>{dataset.status}</strong>
-              </p>
-              <p style={{ color: '#475569' }}>{dataset.description || 'No description provided.'}</p>
-              <Link href={`/datasets/${dataset.id}`} className="primary-link">
+            <article key={dataset.id} className="card">
+              <div className="card-body datasets-item">
+                <h3>{dataset.name}</h3>
+                <p className="datasets-meta">
+                  Version <span className="pill neutral">{dataset.version}</span> · Status <strong>{dataset.status}</strong>
+                </p>
+                <p className="datasets-note">{dataset.description || 'No description provided.'}</p>
+              <Link href={`/datasets/${dataset.id}`} className="button">
                 Open dataset
               </Link>
+              </div>
             </article>
           ))}
         </section>
       )}
-    </main>
+    </div>
   );
 }

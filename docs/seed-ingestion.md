@@ -78,6 +78,14 @@ http://localhost:3000/documents
 
 You should see the indexed seed documents. Select a document to inspect its metadata and generated chunks.
 
+To ingest ad-hoc files from the dashboard UI, open:
+
+```text
+http://localhost:3000/documents/upload
+```
+
+The upload flow supports `.md`, `.markdown`, and `.txt` files and forwards content to `POST /api/v1/documents/ingest`.
+
 ## Verify through rag-api
 
 List indexed documents:

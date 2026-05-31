@@ -126,9 +126,12 @@ export function DevToolsClient() {
 
   return (
     <>
-      <section className="panel" style={{ marginTop: '32px' }}>
-        <h2 style={{ marginTop: 0 }}>Request presets</h2>
-        <p style={{ color: '#475569' }}>
+      <section className="card">
+        <div className="card-header">
+          <h2>Request presets</h2>
+        </div>
+        <div className="card-body">
+        <p className="devtools-note">
           Load a preset, adjust identifiers (dataset/eval run IDs), and send the request.
         </p>
         <div className="devtools-preset-grid">
@@ -143,10 +146,14 @@ export function DevToolsClient() {
             </button>
           ))}
         </div>
+        </div>
       </section>
 
-      <section className="panel" style={{ marginTop: '24px' }}>
-        <h2 style={{ marginTop: 0 }}>Request builder</h2>
+      <section className="card">
+        <div className="card-header">
+          <h2>Request builder</h2>
+        </div>
+        <div className="card-body">
         <form className="devtools-form" onSubmit={onSubmit}>
           <label>
             Service
@@ -201,16 +208,21 @@ export function DevToolsClient() {
           </button>
         </form>
 
-        {error ? <p style={{ color: '#b91c1c' }}>{error}</p> : null}
+        {error ? <p className="devtools-error">{error}</p> : null}
+        </div>
       </section>
 
-      <section className="panel" style={{ marginTop: '24px' }}>
-        <h2 style={{ marginTop: 0 }}>Response</h2>
+      <section className="card">
+        <div className="card-header">
+          <h2>Response</h2>
+        </div>
+        <div className="card-body">
         {responseText ? (
           <pre className="devtools-response">{responseText}</pre>
         ) : (
-          <p style={{ color: '#475569' }}>Send a request to inspect the backend response.</p>
+          <p className="devtools-note">Send a request to inspect the backend response.</p>
         )}
+        </div>
       </section>
     </>
   );

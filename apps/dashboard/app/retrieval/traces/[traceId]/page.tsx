@@ -9,68 +9,38 @@ export default async function RetrievalTracePage({ params }: RetrievalTracePageP
   const { traceId } = await params;
   const result = await fetchRetrievalTrace(traceId);
 
-  return (
-    <main style={{ padding: '48px', maxWidth: '1120px', margin: '0 auto' }}>
-      <Link href="/retrieval" style={{ color: '#475569', textDecoration: 'none' }}>
-        ← Retrieval inspector
-      </Link>
-      <p style={{ marginTop: '32px', marginBottom: 0, color: '#475569', fontWeight: 600 }}>
-        Retrieval trace
-      </p>
-      <h1 style={{ marginTop: '12px', fontSize: '44px', lineHeight: 1.05 }}>
-        Inspect retrieval trace
-      </h1>
-
-      {!result.ok ? (
-        <section className="panel error-panel" style={{ marginTop: '32px' }}>
-          <h2>Unable to load trace</h2>
-          <p>{result.error}</p>
-          <p>
-            Run a retrieval search first, then open the trace link from the retrieval results page.
-          </p>
-        </section>
-      ) : (
-        <>
+  return !result.ok ? (
+    <section className="panel error-panel">
+      <h2>Unable to load trace</h2>
+      <p>{result.error}</p>
+    </section>
+  ) : (
+    <div className="stack">
+      <section className="card">
+        <div className="card-header">
+          <h2>Trace {result.trace.id}</h2>
+          <Link href="/retrieval" className="button-secondary">Back to retrieval</Link>
+        </div>
+        <div className="card-body">
           <section className="document-summary-grid">
-            <article className="panel summary-item">
-              <span>Trace ID</span>
-              <strong>{result.trace.id}</strong>
-            </article>
-            <article className="panel summary-item">
-              <span>Query</span>
-              <strong>{result.trace.query}</strong>
-            </article>
-            <article className="panel summary-item">
-              <span>Results</span>
-              <strong>{result.trace.resultCount} / limit {result.trace.limit}</strong>
-            </article>
-            <article className="panel summary-item">
-              <span>Duration</span>
-              <strong>{result.trace.durationMs}ms</strong>
-            </article>
+            <article className="panel summary-item"><span>Query</span><strong>{result.trace.query}</strong></article>
+            <article className="panel summary-item"><span>Results</span><strong>{result.trace.resultCount} / limit {result.trace.limit}</strong></article>
+            <article className="panel summary-item"><span>Duration</span><strong>{result.trace.durationMs}ms</strong></article>
           </section>
-
-          <section style={{ display: 'grid', gap: '16px', marginTop: '32px' }}>
-            {result.trace.chunks.map((chunk) => (
-              <article key={`${chunk.rank}-${chunk.chunkId}`} className="panel retrieval-result-card">
-                <div className="chunk-header">
-                  <strong>Rank {chunk.rank}</strong>
-                  <span>score {formatScore(chunk.score)}</span>
-                </div>
-                <h2>{chunk.title}</h2>
-                <p className="heading-path">
-                  {chunk.sourceId} · chunk {chunk.chunkIndex + 1}
-                </p>
-                <p className="heading-path">
-                  {chunk.headingPath.length > 0 ? chunk.headingPath.join(' / ') : 'No heading'}
-                </p>
-                <code>{chunk.chunkId}</code>
-              </article>
-            ))}
-          </section>
-        </>
-      )}
-    </main>
+        </div>
+      </section>
+      <section className="stack">
+        {result.trace.chunks.map((chunk) => (
+          <article key={`${chunk.rank}-${chunk.chunkId}`} className="panel retrieval-result-card">
+            <div className="chunk-header"><strong>Rank {chunk.rank}</strong><span>score {formatScore(chunk.score)}</span></div>
+            <h2>{chunk.title}</h2>
+            <p className="heading-path">{chunk.sourceId} · chunk {chunk.chunkIndex + 1}</p>
+            <p className="heading-path">{chunk.headingPath.length > 0 ? chunk.headingPath.join(' / ') : 'No heading'}</p>
+            <code>{chunk.chunkId}</code>
+          </article>
+        ))}
+      </section>
+    </div>
   );
 }
 

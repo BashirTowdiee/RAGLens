@@ -73,18 +73,28 @@ apps:
     purpose: UI for documents, retrieval, datasets, traces, and eval runs.
     public_entry_points:
       - apps/dashboard/app/layout.tsx
+      - apps/dashboard/app/components/AppShell.tsx
+      - apps/dashboard/app/components/Sidebar.tsx
+      - apps/dashboard/app/components/Topbar.tsx
       - apps/dashboard/app/page.tsx
+      - apps/dashboard/app/queries/page.tsx
+      - apps/dashboard/app/settings/page.tsx
       - apps/dashboard/app/documents/page.tsx
+      - apps/dashboard/app/documents/upload/page.tsx
       - apps/dashboard/app/retrieval/page.tsx
       - apps/dashboard/app/eval-runs/page.tsx
       - apps/dashboard/app/datasets/page.tsx
       - apps/dashboard/app/datasets/[datasetId]/page.tsx
       - apps/dashboard/app/eval-runs/new/page.tsx
+      - apps/dashboard/app/comparisons/page.tsx
       - apps/dashboard/app/devtools/page.tsx
       - apps/dashboard/app/api/devtools/route.ts
+      - apps/dashboard/app/api/documents/ingest/route.ts
     important_files:
+      - apps/dashboard/app/lib/routeMeta.tsx
       - apps/dashboard/app/lib/ragApi.ts
       - apps/dashboard/app/lib/evalApi.ts
+      - apps/dashboard/app/documents/upload/upload-form.tsx
       - apps/dashboard/app/devtools/devtools-client.tsx
       - apps/dashboard/next.config.mjs
     tests:

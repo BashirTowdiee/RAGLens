@@ -62,13 +62,10 @@ export default async function DatasetDetailPage({ params, searchParams }: Datase
   ]);
 
   return (
-    <main style={{ padding: '48px', maxWidth: '1120px', margin: '0 auto' }}>
-      <Link href="/datasets" style={{ color: '#475569', textDecoration: 'none' }}>
+    <div className="stack datasets-stack">
+      <Link href="/datasets" className="button-ghost">
         ← Datasets
       </Link>
-      <p style={{ marginTop: '32px', marginBottom: 0, color: '#475569', fontWeight: 600 }}>
-        Evaluation dataset
-      </p>
 
       {!datasetResult.ok ? (
         <section className="panel error-panel">
@@ -80,132 +77,89 @@ export default async function DatasetDetailPage({ params, searchParams }: Datase
         </section>
       ) : (
         <>
-          <h1 style={{ marginTop: '12px', fontSize: '44px', lineHeight: 1.05 }}>
-            {datasetResult.dataset.name}
-          </h1>
-          <p style={{ fontSize: '18px', color: '#475569', lineHeight: 1.6 }}>
-            Version <code>{datasetResult.dataset.version}</code> · Status{' '}
-            <strong>{datasetResult.dataset.status}</strong>
-          </p>
-          <p style={{ color: '#475569' }}>
-            {datasetResult.dataset.description || 'No description provided.'}
-          </p>
+          <section className="card">
+            <div className="card-header">
+              <h2>{datasetResult.dataset.name}</h2>
+              <Link
+                href={`/eval-runs/new?datasetId=${encodeURIComponent(datasetId)}`}
+                className="button"
+              >
+                Create eval run
+              </Link>
+            </div>
+            <div className="card-body">
+              <p className="datasets-meta">
+                Version <span className="pill neutral">{datasetResult.dataset.version}</span> · Status{' '}
+                <strong>{datasetResult.dataset.status}</strong>
+              </p>
+              <p className="datasets-note">{datasetResult.dataset.description || 'No description provided.'}</p>
+            </div>
+          </section>
 
           {resolvedSearchParams.created ? (
-            <section
-              className="panel"
-              style={{ marginTop: '16px', borderColor: '#86efac', background: '#f0fdf4' }}
-            >
-              <p style={{ margin: 0, color: '#166534' }}>Dataset created successfully.</p>
+            <section className="panel datasets-success">
+              <p>Dataset created successfully.</p>
             </section>
           ) : null}
 
           {resolvedSearchParams.testCaseCreated ? (
-            <section
-              className="panel"
-              style={{ marginTop: '16px', borderColor: '#86efac', background: '#f0fdf4' }}
-            >
-              <p style={{ margin: 0, color: '#166534' }}>Test case created successfully.</p>
+            <section className="panel datasets-success">
+              <p>Test case created successfully.</p>
             </section>
           ) : null}
 
-          <section className="panel" style={{ marginTop: '24px' }}>
-            <h2 style={{ marginTop: 0 }}>Add test case</h2>
-            <form action={createDatasetTestCaseAction} style={{ display: 'grid', gap: '16px' }}>
+          <section className="card">
+            <div className="card-header">
+              <h2>Add test case</h2>
+            </div>
+            <div className="card-body">
+            <form action={createDatasetTestCaseAction} className="datasets-testcase-form">
               <input type="hidden" name="datasetId" value={datasetId} />
-              <label style={{ color: '#475569', display: 'grid', fontWeight: 700, gap: '8px' }}>
+              <label>
                 Question
-                <textarea
-                  name="question"
-                  required
-                  rows={3}
-                  style={{
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '12px',
-                    font: 'inherit',
-                    padding: '12px 14px'
-                  }}
-                />
+                <textarea name="question" required rows={3} />
               </label>
-              <label style={{ color: '#475569', display: 'grid', fontWeight: 700, gap: '8px' }}>
+              <label>
                 Expected answer
-                <textarea
-                  name="expected_answer"
-                  required
-                  rows={4}
-                  style={{
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '12px',
-                    font: 'inherit',
-                    padding: '12px 14px'
-                  }}
-                />
+                <textarea name="expected_answer" required rows={4} />
               </label>
-              <label style={{ color: '#475569', display: 'grid', fontWeight: 700, gap: '8px' }}>
+              <label>
                 Reference citations (one per line)
-                <textarea
-                  name="reference_citations"
-                  rows={4}
-                  style={{
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '12px',
-                    font: 'inherit',
-                    padding: '12px 14px'
-                  }}
-                />
+                <textarea name="reference_citations" rows={4} />
               </label>
-              <button
-                type="submit"
-                style={{
-                  background: '#0f172a',
-                  border: 0,
-                  borderRadius: '12px',
-                  color: 'white',
-                  cursor: 'pointer',
-                  font: 'inherit',
-                  fontWeight: 700,
-                  padding: '13px 18px',
-                  width: 'fit-content'
-                }}
-              >
-                Add test case
-              </button>
+              <button type="submit">Add test case</button>
             </form>
             {resolvedSearchParams.createTestCaseError ? (
-              <p style={{ color: '#b91c1c' }}>
+              <p className="datasets-error">
                 Create test case failed: {resolvedSearchParams.createTestCaseError}
               </p>
             ) : null}
+            </div>
           </section>
 
-          <section className="panel" style={{ marginTop: '24px' }}>
-            <h2 style={{ marginTop: 0 }}>Test cases</h2>
-            <p style={{ color: '#475569' }}>
+          <section className="card">
+            <div className="card-header">
+              <h2>Test cases</h2>
+            </div>
+            <div className="card-body">
+            <p className="datasets-note">
               Data source: <code>{getEvalApiDisplayBaseUrl()}/api/v1/datasets/{datasetId}/test-cases</code>
             </p>
             {!testCaseResult.ok ? (
-              <p style={{ color: '#b91c1c' }}>Unable to load test cases: {testCaseResult.error}</p>
+              <p className="datasets-error">Unable to load test cases: {testCaseResult.error}</p>
             ) : testCaseResult.testCases.length === 0 ? (
-              <p style={{ color: '#475569' }}>No test cases yet.</p>
+              <p className="datasets-note">No test cases yet.</p>
             ) : (
-              <div style={{ display: 'grid', gap: '12px' }}>
+              <div className="datasets-case-list">
                 {testCaseResult.testCases.map((testCase) => (
-                  <article
-                    key={testCase.id}
-                    style={{
-                      background: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '12px',
-                      padding: '16px'
-                    }}
-                  >
-                    <p style={{ marginTop: 0, marginBottom: '8px' }}>
+                  <article key={testCase.id} className="datasets-case-item">
+                    <p>
                       <strong>Q:</strong> {testCase.question}
                     </p>
-                    <p style={{ marginTop: 0, marginBottom: '8px', color: '#334155' }}>
+                    <p>
                       <strong>Expected:</strong> {testCase.expected_answer}
                     </p>
-                    <p style={{ marginTop: 0, marginBottom: 0, color: '#475569' }}>
+                    <p>
                       <strong>Reference citations:</strong>{' '}
                       {testCase.reference_citations.length > 0
                         ? testCase.reference_citations.join(', ')
@@ -215,18 +169,10 @@ export default async function DatasetDetailPage({ params, searchParams }: Datase
                 ))}
               </div>
             )}
-          </section>
-
-          <section style={{ marginTop: '24px' }}>
-            <Link
-              href={`/eval-runs/new?datasetId=${encodeURIComponent(datasetId)}`}
-              className="primary-link"
-            >
-              Create eval run for this dataset
-            </Link>
+            </div>
           </section>
         </>
       )}
-    </main>
+    </div>
   );
 }
