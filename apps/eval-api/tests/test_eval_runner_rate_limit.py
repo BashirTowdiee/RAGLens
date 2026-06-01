@@ -12,7 +12,7 @@ def create_eval_run(name: str, dataset_id: str) -> dict:
         json={
             'dataset_id': dataset_id,
             'name': name,
-            'rag_config_id': 'vector-default',
+            'rag_config_id': 'deterministic',
         },
     )
     assert response.status_code == 201

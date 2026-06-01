@@ -80,7 +80,7 @@ export default async function EvalRunDetailPage({ params, searchParams }: EvalRu
 
   return (
     <div className="stack eval-runs-stack">
-      <Link href="/eval-runs" className="button-ghost">← Eval runs</Link>
+      <Link href="/eval-runs" className="back-link">← Eval runs</Link>
 
       {!runResult.ok ? (
         <section className="panel error-panel">

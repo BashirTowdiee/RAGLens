@@ -63,7 +63,7 @@ export default async function DatasetDetailPage({ params, searchParams }: Datase
 
   return (
     <div className="stack datasets-stack">
-      <Link href="/datasets" className="button-ghost">
+      <Link href="/datasets" className="back-link">
         ← Datasets
       </Link>
 

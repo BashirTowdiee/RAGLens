@@ -11,7 +11,7 @@ def test_eval_run_judge_enabled_defaults_to_true() -> None:
         json={
             'dataset_id': 'judge-enabled-default-dataset',
             'name': 'Judge enabled by default',
-            'rag_config_id': 'vector-default',
+            'rag_config_id': 'deterministic',
         },
     )
 
@@ -26,7 +26,7 @@ def test_eval_run_can_disable_judge_result_creation() -> None:
         json={
             'dataset_id': 'judge-disabled-dataset',
             'name': 'Judge disabled run',
-            'rag_config_id': 'vector-default',
+            'rag_config_id': 'deterministic',
             'judge_enabled': False,
         },
     )
@@ -61,7 +61,7 @@ def test_eval_run_keeps_judge_result_creation_when_enabled() -> None:
         json={
             'dataset_id': 'judge-enabled-dataset',
             'name': 'Judge enabled run',
-            'rag_config_id': 'vector-default',
+            'rag_config_id': 'deterministic',
             'judge_enabled': True,
         },
     )

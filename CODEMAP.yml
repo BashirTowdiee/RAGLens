@@ -27,14 +27,19 @@ apps:
       - apps/rag-api/src/routes.ts
       - apps/rag-api/src/query/routes.ts
       - apps/rag-api/src/documents/routes.ts
+      - apps/rag-api/src/runtime/routes.ts
     important_files:
       - apps/rag-api/src/app.ts
       - apps/rag-api/src/config.ts
       - apps/rag-api/src/query/queryService.ts
       - apps/rag-api/src/query/providerFactory.ts
+      - apps/rag-api/src/query/ragConfigRepository.ts
+      - apps/rag-api/src/query/postgresRagConfigRepository.ts
       - apps/rag-api/src/query/modelPricing.ts
+      - apps/rag-api/src/documents/embeddingProviderFactory.ts
       - apps/rag-api/src/documents/postgresDocumentRepository.ts
       - apps/rag-api/src/documents/reranker.ts
+      - apps/rag-api/src/runtime/runtimeConfig.ts
     tests:
       - apps/rag-api/src/**/*.test.ts
       - apps/rag-api/src/**/*.integration.test.ts
@@ -53,12 +58,14 @@ apps:
     public_entry_points:
       - apps/eval-api/app/main.py
       - apps/eval-api/app/scoring_router.py
+      - apps/eval-api/app/runtime_config.py
     important_files:
       - apps/eval-api/app/eval_runner.py
       - apps/eval-api/app/rag_client.py
       - apps/eval-api/app/ci_gate.py
       - apps/eval-api/app/comparisons.py
       - apps/eval-api/app/main.py
+      - apps/eval-api/app/runtime_config.py
       - apps/eval-api/pyproject.toml
     tests:
       - apps/eval-api/tests/test_*.py
@@ -79,6 +86,7 @@ apps:
       - apps/dashboard/app/page.tsx
       - apps/dashboard/app/queries/page.tsx
       - apps/dashboard/app/settings/page.tsx
+      - apps/dashboard/app/settings/settings-client.tsx
       - apps/dashboard/app/documents/page.tsx
       - apps/dashboard/app/documents/upload/page.tsx
       - apps/dashboard/app/retrieval/page.tsx
@@ -87,9 +95,11 @@ apps:
       - apps/dashboard/app/datasets/[datasetId]/page.tsx
       - apps/dashboard/app/eval-runs/new/page.tsx
       - apps/dashboard/app/comparisons/page.tsx
+      - apps/dashboard/app/comparisons/new/page.tsx
       - apps/dashboard/app/devtools/page.tsx
       - apps/dashboard/app/api/devtools/route.ts
       - apps/dashboard/app/api/documents/ingest/route.ts
+      - apps/dashboard/app/api/settings/runtime/route.ts
     important_files:
       - apps/dashboard/app/lib/routeMeta.tsx
       - apps/dashboard/app/lib/ragApi.ts
@@ -137,6 +147,7 @@ infra:
       - infra/migrations/001_init.sql
       - infra/migrations/014_ci_gate_persistence.sql
       - infra/migrations/016_eval_phase14_hardening.sql
+      - infra/migrations/017_rag_configs_and_embedding_cutover.sql
   - path: infra/seed
     purpose: Seed documents and evaluation datasets.
     important_files:

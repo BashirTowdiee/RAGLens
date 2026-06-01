@@ -713,7 +713,8 @@ Reranking adapter behaviour:
 Provider runtime selection:
 
 ```text
-- provider is selected via service config (ANSWER_PROVIDER / ANSWER_MODEL)
+- provider/model may be selected per request via ragConfigId
+- if ragConfigId is omitted, service default provider config is used
 - supported providers: deterministic, openai, anthropic, openrouter, ollama
 - optional pricing config (ANSWER_INPUT_COST_PER_1M_TOKENS / ANSWER_OUTPUT_COST_PER_1M_TOKENS)
   enables estimatedCostUsd telemetry from provider token usage
@@ -896,20 +897,22 @@ List RAG configs.
 
 ```json
 {
-  "items": [
+  "ragConfigs": [
     {
-      "id": "5e6794f4-f2cd-4471-a00f-697efb029555",
-      "name": "vector-default",
-      "provider": "openai",
-      "model": "gpt-4.1-mini",
-      "embeddingProvider": "openai",
-      "embeddingModel": "text-embedding-3-small",
+      "id": "local-balanced",
+      "name": "Local Balanced (Ollama qwen3:8b)",
+      "answerProvider": "ollama",
+      "answerModel": "qwen3:8b",
+      "embeddingProvider": "ollama",
+      "embeddingModel": "nomic-embed-text",
       "retrievalMode": "vector",
-      "topK": 8,
-      "chunkSize": 800,
-      "chunkOverlap": 100,
-      "promptVersion": "answer-v1",
-      "temperature": 0,
+      "topK": 5,
+      "rerankerProvider": "none",
+      "promptContextTokenBudget": 1200,
+      "active": true,
+      "metadata": {
+        "preset": "local-balanced"
+      },
       "createdAt": "2026-05-17T10:30:00.000Z"
     }
   ]

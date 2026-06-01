@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { QueryProviderFailure, QueryService } from './queryService.js';
+import type { RagConfigRepository } from './ragConfigRepository.js';
 import type { QueryTraceRepository } from './queryTraceRepository.js';
 
 const RetrievalModeSchema = z.enum(['vector', 'keyword', 'hybrid', 'hybrid_reranked']);
@@ -8,6 +9,7 @@ const RetrievalModeSchema = z.enum(['vector', 'keyword', 'hybrid', 'hybrid_reran
 const QueryRequestSchema = z.object({
   question: z.string().trim().min(1),
   topK: z.number().int().min(1).max(20).optional(),
+  ragConfigId: z.string().trim().min(1).max(120).optional(),
   retrievalMode: RetrievalModeSchema.optional(),
   rewriteQuery: z.boolean().optional(),
   metadataFilters: z
@@ -18,8 +20,13 @@ const QueryRequestSchema = z.object({
 export async function registerQueryRoutes(
   app: FastifyInstance,
   queryService: QueryService,
-  queryTraceRepository: QueryTraceRepository
+  queryTraceRepository: QueryTraceRepository,
+  ragConfigRepository: RagConfigRepository
 ) {
+  app.get('/api/v1/rag-configs', async () => ({
+    ragConfigs: await ragConfigRepository.listActive()
+  }));
+
   app.post('/api/v1/query', async (request, reply) => {
     const requestId = resolveRequestId(request);
     const parseResult = QueryRequestSchema.safeParse(request.body);
@@ -33,12 +40,28 @@ export async function registerQueryRoutes(
       });
     }
 
+    const ragConfigId = parseResult.data.ragConfigId?.trim();
+    const ragConfig = ragConfigId ? await ragConfigRepository.getById(ragConfigId) : null;
+
+    if (ragConfigId && !ragConfig) {
+      return reply.status(404).send({
+        error: 'rag_config_not_found',
+        message: 'RAG config was not found.',
+        requestId,
+        ragConfigId,
+      });
+    }
+
     try {
-      const result = await queryService.answer(parseResult.data);
+      const result = await queryService.answer({
+        ...parseResult.data,
+        ragConfig
+      });
       request.log.info({
         requestId,
         traceId: result.traceId,
-        retrievalMode: parseResult.data.retrievalMode ?? 'vector',
+        ragConfigId: ragConfig?.id ?? 'deterministic',
+        retrievalMode: parseResult.data.retrievalMode ?? ragConfig?.retrievalMode ?? 'vector',
         queryRewriteEnabled: result.queryRewriteEnabled,
         retrievalQuery: result.retrievalQuery,
         provider: result.usage.provider,
@@ -53,7 +76,8 @@ export async function registerQueryRoutes(
           {
             requestId,
             traceId: error.traceId,
-            retrievalMode: parseResult.data.retrievalMode ?? 'vector',
+            ragConfigId: ragConfig?.id ?? 'deterministic',
+            retrievalMode: parseResult.data.retrievalMode ?? ragConfig?.retrievalMode ?? 'vector',
             provider: error.providerError.provider,
             model: 'unknown',
             latencyMs: null,

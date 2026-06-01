@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from psycopg import Connection
 from psycopg.rows import dict_row
 from pydantic import BaseModel, Field
@@ -656,12 +657,26 @@ class PostgresEvalRunRepository(EvalRunRepository):
     def _connect(self) -> Connection:
         return Connection.connect(self._database_url, row_factory=dict_row)
 
-def create_eval_run_router(repository: EvalRunRepository) -> APIRouter:
+def create_eval_run_router(
+    repository: EvalRunRepository,
+    validate_rag_config: Callable[[str, str], None] | None = None,
+    list_rag_configs: Callable[[str], list[dict[str, str]]] | None = None,
+) -> APIRouter:
     router = APIRouter(prefix='/api/v1/eval-runs', tags=['eval-runs'])
 
     @router.post('', response_model=EvalRunResponse, status_code=status.HTTP_201_CREATED)
-    def create_eval_run(request: CreateEvalRunRequest) -> EvalRunResponse:
-        return to_eval_run_response(repository.create(request), repository)
+    def create_eval_run(request: Request, payload: CreateEvalRunRequest) -> EvalRunResponse:
+        request_id = str(getattr(request.state, 'request_id', '') or '')
+        if validate_rag_config is not None:
+            validate_rag_config(payload.rag_config_id.strip(), request_id)
+        return to_eval_run_response(repository.create(payload), repository)
+
+    @router.get('/rag-config-presets')
+    def rag_config_presets(request: Request) -> dict[str, list[dict[str, str]]]:
+        if list_rag_configs is None:
+            return {'rag_configs': []}
+        request_id = str(getattr(request.state, 'request_id', '') or '')
+        return {'rag_configs': list_rag_configs(request_id)}
 
     @router.get('', response_model=EvalRunListResponse)
     def list_eval_runs() -> EvalRunListResponse:

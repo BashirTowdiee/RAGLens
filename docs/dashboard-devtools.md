@@ -25,6 +25,14 @@ dashboard -> HTTP -> rag-api / eval-api
 
 No backend internals are imported into the dashboard.
 
+The dashboard also includes a runtime settings surface at:
+
+```text
+http://localhost:3000/settings
+```
+
+This settings page updates rag-api/eval-api runtime defaults and service wiring through backend-owned runtime config APIs.
+
 ## How it works
 
 The page sends request payloads to a same-origin Next.js route:
@@ -44,6 +52,14 @@ Current guardrails:
 - response includes status, duration, selected headers, and parsed body
 ```
 
+Preset coverage now includes:
+
+```text
+- GET  rag  /api/v1/rag-configs
+- GET  eval /api/v1/eval-runs/rag-config-presets
+- POST eval /api/v1/eval-runs with named rag_config_id presets
+```
+
 ## Config
 
 The proxy uses existing dashboard service URL config:
@@ -60,12 +76,44 @@ rag-api:  http://localhost:8000
 eval-api: http://localhost:8001
 ```
 
+Runtime settings writes use:
+
+```text
+GET /api/settings/runtime
+PUT /api/settings/runtime
+```
+
+The dashboard route aggregates backend config APIs:
+
+```text
+GET/PUT rag-api  /api/v1/runtime-config
+GET/PUT eval-api /api/v1/runtime-config
+```
+
+Current runtime-config persistence is in-memory for both services, so changes apply immediately to running services but are not durable across restarts.
+
 ## Typical workflow
 
 1. Start the stack with `docker compose up --build`.
 2. Open `http://localhost:3000/devtools`.
 3. Choose a preset, then replace placeholder IDs where needed.
 4. Send the request and inspect status, headers (`x-request-id`), and body.
+
+For end-to-end provider comparison runs from the UI, use:
+
+```text
+http://localhost:3000/comparisons/new
+```
+
+This wizard:
+
+```text
+1. selects a dataset
+2. selects baseline/candidate rag configs
+3. creates both eval runs
+4. executes both runs
+5. creates and opens the comparison
+```
 
 ## Example requests
 
@@ -83,3 +131,4 @@ POST eval /api/v1/ci/evaluate
 - This is a debugging and contract-inspection surface for local development.
 - It does not replace typed dashboard pages for primary product workflows.
 - It intentionally keeps calls inside `/api/v1` to match versioned API contracts.
+- Runtime config changes made through `/settings` are live in the running services and are reset on service restart.

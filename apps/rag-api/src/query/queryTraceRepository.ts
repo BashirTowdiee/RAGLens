@@ -15,6 +15,12 @@ export type QueryTraceConfig = {
   contextTokenBudget?: number;
   packedChunkCount?: number;
   droppedChunkCount?: number;
+  ragConfigId?: string;
+  ragConfigName?: string;
+  answerProvider?: string;
+  answerModel?: string;
+  embeddingProvider?: string;
+  embeddingModel?: string;
 };
 
 export type QueryTraceError = {

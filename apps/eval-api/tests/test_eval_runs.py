@@ -14,7 +14,7 @@ def create_eval_run(name: str = 'Baseline run', dataset_id: str = 'company-kb-ev
         json={
             'dataset_id': dataset_id,
             'name': name,
-            'rag_config_id': 'vector-default',
+            'rag_config_id': 'deterministic',
         },
     )
     assert response.status_code == 201
@@ -96,7 +96,7 @@ def test_create_and_fetch_eval_run() -> None:
         json={
             'dataset_id': 'company-kb-eval-v1',
             'name': 'Baseline run',
-            'rag_config_id': 'vector-default',
+            'rag_config_id': 'deterministic',
         },
     )
 
@@ -105,7 +105,7 @@ def test_create_and_fetch_eval_run() -> None:
     assert eval_run['id']
     assert eval_run['dataset_id'] == 'company-kb-eval-v1'
     assert eval_run['name'] == 'Baseline run'
-    assert eval_run['rag_config_id'] == 'vector-default'
+    assert eval_run['rag_config_id'] == 'deterministic'
     assert eval_run['status'] == 'queued'
     assert eval_run['summary'] == {
         'total_cases': 0,
@@ -132,7 +132,7 @@ def test_list_eval_runs_contains_created_eval_run() -> None:
         json={
             'dataset_id': 'company-kb-eval-v1',
             'name': 'Candidate run',
-            'rag_config_id': 'vector-topk-12',
+            'rag_config_id': 'local-balanced',
         },
     )
     eval_run = create_response.json()
@@ -163,6 +163,31 @@ def test_rejects_invalid_eval_run_request() -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_rejects_unknown_rag_config_on_create() -> None:
+    response = client.post(
+        '/api/v1/eval-runs',
+        json={
+            'dataset_id': 'company-kb-eval-v1',
+            'name': 'Unknown config run',
+            'rag_config_id': 'does-not-exist',
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json()['detail']['error'] == 'rag_config_not_found'
+    assert response.json()['detail']['ragConfigId'] == 'does-not-exist'
+
+
+def test_lists_eval_run_rag_config_presets() -> None:
+    response = client.get('/api/v1/eval-runs/rag-config-presets')
+
+    assert response.status_code == 200
+    body = response.json()
+    assert 'rag_configs' in body
+    ids = [entry['id'] for entry in body['rag_configs']]
+    assert 'deterministic' in ids
 
 
 def test_create_and_fetch_eval_case_result() -> None:

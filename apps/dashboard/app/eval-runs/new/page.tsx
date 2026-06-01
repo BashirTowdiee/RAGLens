@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createEvalRun, fetchDatasets } from '../../lib/evalApi';
+import { fetchRagConfigs } from '../../lib/ragApi';
 
 async function createEvalRunAction(formData: FormData) {
   'use server';
@@ -38,19 +39,28 @@ type EvalRunNewPageProps = {
 };
 
 export default async function EvalRunNewPage({ searchParams }: EvalRunNewPageProps) {
-  const datasetsResult = await fetchDatasets();
+  const [datasetsResult, ragConfigsResult] = await Promise.all([
+    fetchDatasets(),
+    fetchRagConfigs()
+  ]);
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const selectedDatasetId = resolvedSearchParams.datasetId;
 
   return (
     <div className="stack eval-runs-stack">
-      <Link href="/eval-runs" className="button-ghost">← Eval runs</Link>
+      <Link href="/eval-runs" className="back-link">← Eval runs</Link>
 
       {!datasetsResult.ok ? (
         <section className="panel error-panel">
           <h2>Unable to load datasets</h2>
           <p>{datasetsResult.error}</p>
           <p>Check that eval-api is running, then refresh.</p>
+        </section>
+      ) : !ragConfigsResult.ok ? (
+        <section className="panel error-panel">
+          <h2>Unable to load RAG configs</h2>
+          <p>{ragConfigsResult.error}</p>
+          <p>Check that rag-api is running, then refresh.</p>
         </section>
       ) : datasetsResult.datasets.length === 0 ? (
         <section className="panel empty-panel">
@@ -89,7 +99,13 @@ export default async function EvalRunNewPage({ searchParams }: EvalRunNewPagePro
 
               <label>
                 rag_config_id
-                <input name="rag_config_id" defaultValue="default" required />
+                <select name="rag_config_id" defaultValue="deterministic" required>
+                  {ragConfigsResult.ragConfigs.map((config) => (
+                    <option key={config.id} value={config.id}>
+                      {config.name} · {config.id}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label className="eval-runs-checkbox-row">

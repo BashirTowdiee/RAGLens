@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { DevToolsClient } from './devtools-client';
 import { getEvalApiDisplayBaseUrl } from '../lib/evalApi';
 import { getRagApiDisplayBaseUrl } from '../lib/ragApi';

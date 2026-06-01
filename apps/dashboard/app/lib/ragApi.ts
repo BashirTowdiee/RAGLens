@@ -85,6 +85,27 @@ export type IngestDocumentResult =
   | { ok: true; status: number; data: IngestDocumentResponse }
   | { ok: false; status: number; error: string };
 
+export type RagConfigRecord = {
+  id: string;
+  name: string;
+  answerProvider: string;
+  answerModel: string;
+  embeddingProvider: string;
+  embeddingModel: string;
+  retrievalMode: 'vector' | 'keyword' | 'hybrid' | 'hybrid_reranked';
+  topK: number;
+  rerankerProvider: string;
+  promptContextTokenBudget: number;
+  active: boolean;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RagConfigsResult =
+  | { ok: true; ragConfigs: RagConfigRecord[] }
+  | { ok: false; error: string };
+
 export function getRagApiBaseUrl(): string {
   return (
     process.env.RAG_API_BASE_URL ??
@@ -243,6 +264,26 @@ export async function ingestDocument(payload: IngestDocumentRequest): Promise<In
       ok: false,
       status: 502,
       error: error instanceof Error ? error.message : 'Unable to ingest document.'
+    };
+  }
+}
+
+export async function fetchRagConfigs(): Promise<RagConfigsResult> {
+  try {
+    const response = await fetch(`${getRagApiBaseUrl()}/api/v1/rag-configs`, {
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      return { ok: false, error: `rag-api returned HTTP ${response.status}` };
+    }
+
+    const body = (await response.json()) as { ragConfigs?: RagConfigRecord[] };
+    return { ok: true, ragConfigs: body.ragConfigs ?? [] };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Unable to fetch RAG configs.'
     };
   }
 }

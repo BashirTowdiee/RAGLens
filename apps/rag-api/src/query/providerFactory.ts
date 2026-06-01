@@ -17,6 +17,10 @@ const DEFAULT_MODELS = {
 } as const;
 
 type ProviderName = AppConfig['ANSWER_PROVIDER'];
+export type AnswerProviderSelection = {
+  provider: ProviderName;
+  model?: string;
+};
 
 type OpenAiCompatibleProviderConfig = {
   provider: Exclude<ProviderName, 'anthropic' | 'deterministic'>;
@@ -35,41 +39,51 @@ type AnthropicProviderConfig = {
 };
 
 export function createAnswerProvider(config: AppConfig): AnswerProvider {
+  return createAnswerProviderForSelection(config, {
+    provider: config.ANSWER_PROVIDER,
+    model: config.ANSWER_MODEL
+  });
+}
+
+export function createAnswerProviderForSelection(
+  config: AppConfig,
+  selection: AnswerProviderSelection
+): AnswerProvider {
   const pricing = {
     inputCostPer1MTokens: config.ANSWER_INPUT_COST_PER_1M_TOKENS,
     outputCostPer1MTokens: config.ANSWER_OUTPUT_COST_PER_1M_TOKENS
   };
 
-  if (config.ANSWER_PROVIDER === 'deterministic') {
+  if (selection.provider === 'deterministic') {
     return new DeterministicAnswerProvider();
   }
 
-  if (config.ANSWER_PROVIDER === 'anthropic') {
+  if (selection.provider === 'anthropic') {
     return new AnthropicAnswerProvider({
       provider: 'anthropic',
       apiKey: config.ANTHROPIC_API_KEY,
       baseUrl: config.ANTHROPIC_BASE_URL,
-      model: config.ANSWER_MODEL ?? DEFAULT_MODELS.anthropic,
+      model: selection.model ?? DEFAULT_MODELS.anthropic,
       pricing
     });
   }
 
-  if (config.ANSWER_PROVIDER === 'openai') {
+  if (selection.provider === 'openai') {
     return new OpenAiCompatibleAnswerProvider({
       provider: 'openai',
       apiKey: config.OPENAI_API_KEY,
       baseUrl: config.OPENAI_BASE_URL,
-      model: config.ANSWER_MODEL ?? DEFAULT_MODELS.openai,
+      model: selection.model ?? DEFAULT_MODELS.openai,
       pricing
     });
   }
 
-  if (config.ANSWER_PROVIDER === 'openrouter') {
+  if (selection.provider === 'openrouter') {
     return new OpenAiCompatibleAnswerProvider({
       provider: 'openrouter',
       apiKey: config.OPENROUTER_API_KEY,
       baseUrl: config.OPENROUTER_BASE_URL,
-      model: config.ANSWER_MODEL ?? DEFAULT_MODELS.openrouter,
+      model: selection.model ?? DEFAULT_MODELS.openrouter,
       pricing
     });
   }
@@ -77,7 +91,7 @@ export function createAnswerProvider(config: AppConfig): AnswerProvider {
   return new OpenAiCompatibleAnswerProvider({
     provider: 'ollama',
     baseUrl: config.OLLAMA_BASE_URL,
-    model: config.ANSWER_MODEL ?? DEFAULT_MODELS.ollama,
+    model: selection.model ?? DEFAULT_MODELS.ollama,
     pricing
   });
 }

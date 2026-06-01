@@ -1,3 +1,5 @@
+import json
+
 import httpx
 
 from app.rag_client import (
@@ -38,10 +40,12 @@ def make_client(transport: httpx.BaseTransport) -> HttpRagApiClient:
 
 def test_http_rag_client_maps_successful_query_response() -> None:
     captured_request_headers: dict[str, str] = {}
+    captured_request_json: dict[str, object] = {}
 
     transport = httpx.MockTransport(
         lambda request: (
             captured_request_headers.update(dict(request.headers)),
+            captured_request_json.update(json.loads(request.content.decode('utf-8'))),
             httpx.Response(
                 200,
                 json={
@@ -51,7 +55,7 @@ def test_http_rag_client_maps_successful_query_response() -> None:
                     'citations': [{'sourceId': 'refund-policy.md'}],
                 },
             ),
-        )[1]
+        )[2]
     )
 
     result = make_client(transport).query(
@@ -65,6 +69,25 @@ def test_http_rag_client_maps_successful_query_response() -> None:
     assert result.latency_ms == 42
     assert result.retrieved_sources == ['refund-policy.md']
     assert captured_request_headers.get('x-request-id') == 'request-1'
+    assert captured_request_json['ragConfigId'] == 'vector-default'
+
+
+def test_http_rag_client_lists_rag_configs() -> None:
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            200,
+            json={
+                'ragConfigs': [
+                    {'id': 'deterministic', 'name': 'Deterministic'},
+                    {'id': 'local-balanced', 'name': 'Local Balanced'},
+                ]
+            },
+        )
+    )
+
+    configs = make_client(transport).list_rag_configs(request_id='request-2')
+
+    assert [config.id for config in configs] == ['deterministic', 'local-balanced']
 
 
 def test_http_rag_client_maps_timeout_to_timeout_error() -> None:

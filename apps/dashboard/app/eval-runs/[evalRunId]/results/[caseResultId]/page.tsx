@@ -34,7 +34,7 @@ export default async function EvalCaseDetailPage({ params }: EvalCaseDetailPageP
 
   return (
     <div className="stack eval-runs-stack">
-      <Link href={`/eval-runs/${evalRunId}`} className="button-ghost">← Eval run detail</Link>
+      <Link href={`/eval-runs/${evalRunId}`} className="back-link">← Eval run detail</Link>
 
       {!result.ok ? (
         <section className="panel error-panel">

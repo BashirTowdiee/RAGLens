@@ -11,7 +11,7 @@ def create_eval_run(name: str) -> dict:
         json={
             'dataset_id': 'ci-gate-dataset',
             'name': name,
-            'rag_config_id': 'vector-default',
+            'rag_config_id': 'deterministic',
         },
     )
     assert response.status_code == 201

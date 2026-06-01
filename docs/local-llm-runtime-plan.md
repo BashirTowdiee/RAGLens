@@ -68,6 +68,35 @@ The current bootstrap already includes service boundaries, document ingestion, c
 
 That means the project is ready to plan local model support, but not ready to prioritise every local model feature before the core RAG loop is complete.
 
+## Current implementation note (Phase 16 slice)
+
+The current implementation now supports:
+
+```text
+- rag.rag_configs presets in Postgres
+- GET /api/v1/rag-configs for preset discovery
+- POST /api/v1/query with optional ragConfigId
+- eval-api forwarding rag_config_id -> ragConfigId
+- dashboard preset-aware eval run creation and comparison wizard
+```
+
+Local-balanced profile contract in this slice:
+
+```text
+chat provider: ollama
+chat model: qwen3:8b
+embedding provider: ollama
+embedding model: nomic-embed-text
+retrieval mode: vector
+```
+
+Operational caveat:
+
+```text
+embedding dimension has been cut over to 768 for nomic-embed-text.
+Existing locally indexed embeddings must be regenerated after migration.
+```
+
 ## Design principles
 
 ### 1. Provider-neutral core

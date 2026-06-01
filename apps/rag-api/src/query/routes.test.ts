@@ -538,4 +538,43 @@ describe('query routes', () => {
       metadataFilters: { region: 'au' }
     });
   });
+
+  it('lists active rag config presets', async () => {
+    const app = buildApp(config);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/rag-configs'
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().ragConfigs.length).toBeGreaterThanOrEqual(3);
+    expect(response.json().ragConfigs.map((entry: { id: string }) => entry.id)).toContain(
+      'deterministic'
+    );
+  });
+
+  it('returns rag_config_not_found for unknown ragConfigId', async () => {
+    const app = buildApp(config);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/query',
+      headers: {
+        'x-request-id': 'request-unknown-rag-config'
+      },
+      payload: {
+        question: 'How often can employees work remotely?',
+        ragConfigId: 'missing-config'
+      }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.headers['x-request-id']).toBe('request-unknown-rag-config');
+    expect(response.json()).toMatchObject({
+      error: 'rag_config_not_found',
+      requestId: 'request-unknown-rag-config',
+      ragConfigId: 'missing-config'
+    });
+  });
 });

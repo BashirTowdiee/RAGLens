@@ -26,11 +26,20 @@ export default async function RetrievalPage({ searchParams }: RetrievalPageProps
       </section>
 
       {!query.trim() ? (
-        <section className="panel empty-panel"><h2>Enter a query to inspect retrieval</h2></section>
+        <section className="panel empty-panel retrieval-state-panel">
+          <h2>Enter a query to inspect retrieval</h2>
+          <p className="eval-runs-note">Run a search to inspect ranked chunks and retrieval trace metadata.</p>
+        </section>
       ) : !result.ok ? (
-        <section className="panel error-panel"><h2>Unable to run retrieval</h2><p>{result.error}</p></section>
+        <section className="panel error-panel retrieval-state-panel">
+          <h2>Unable to run retrieval</h2>
+          <p>{result.error}</p>
+        </section>
       ) : result.chunks.length === 0 ? (
-        <section className="panel empty-panel"><h2>No chunks returned</h2></section>
+        <section className="panel empty-panel retrieval-state-panel">
+          <h2>No chunks returned</h2>
+          <p className="eval-runs-note">Try adjusting query terms, retrieval mode, or limit.</p>
+        </section>
       ) : (
         <>
           {result.traceId ? (

@@ -11,9 +11,14 @@ export default function ComparisonsPage() {
           Comparisons are created from the eval runs page by selecting a baseline run and a candidate run from the
           same dataset.
         </p>
-        <Link href="/eval-runs" className="button">
-          Go to eval runs
-        </Link>
+        <div className="button-row">
+          <Link href="/eval-runs" className="button">
+            Go to eval runs
+          </Link>
+          <Link href="/comparisons/new" className="button-secondary">
+            Open comparison wizard
+          </Link>
+        </div>
       </div>
     </section>
   );

@@ -16,6 +16,7 @@ type Preset = {
 
 const presets: Preset[] = [
   { label: 'RAG health', service: 'rag', method: 'GET', path: '/api/v1/health' },
+  { label: 'RAG list configs', service: 'rag', method: 'GET', path: '/api/v1/rag-configs' },
   { label: 'RAG list documents', service: 'rag', method: 'GET', path: '/api/v1/documents' },
   {
     label: 'RAG search chunks',
@@ -35,11 +36,17 @@ const presets: Preset[] = [
   { label: 'Eval health', service: 'eval', method: 'GET', path: '/api/v1/health' },
   { label: 'Eval list runs', service: 'eval', method: 'GET', path: '/api/v1/eval-runs' },
   {
+    label: 'Eval list rag config presets',
+    service: 'eval',
+    method: 'GET',
+    path: '/api/v1/eval-runs/rag-config-presets'
+  },
+  {
     label: 'Eval create run',
     service: 'eval',
     method: 'POST',
     path: '/api/v1/eval-runs',
-    body: '{\n  "dataset_id": "replace-with-dataset-id",\n  "name": "Devtools run",\n  "rag_config_id": "default",\n  "judge_enabled": true\n}'
+    body: '{\n  "dataset_id": "replace-with-dataset-id",\n  "name": "Devtools run",\n  "rag_config_id": "local-balanced",\n  "judge_enabled": true\n}'
   },
   {
     label: 'Eval execute run',

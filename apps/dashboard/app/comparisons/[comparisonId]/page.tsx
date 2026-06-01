@@ -91,7 +91,7 @@ export default async function ComparisonPage({ params }: ComparisonPageProps) {
 
   return (
     <div className="stack eval-runs-stack">
-      <Link href="/eval-runs" className="button-ghost">← Eval runs</Link>
+      <Link href="/eval-runs" className="back-link">← Eval runs</Link>
 
       {!result.ok ? (
         <section className="panel error-panel">
@@ -119,6 +119,9 @@ export default async function ComparisonPage({ params }: ComparisonPageProps) {
             <section>
               <h2>Baseline</h2>
               <p>{result.comparison.baseline_run.name || result.comparison.baseline_run.id}</p>
+              <p className="eval-runs-note">
+                Config <code>{result.comparison.baseline_run.rag_config_id}</code>
+              </p>
               <p>
                 Pass rate <strong>{Math.round(result.comparison.baseline_run.summary.pass_rate * 100)}%</strong>
               </p>
@@ -127,6 +130,9 @@ export default async function ComparisonPage({ params }: ComparisonPageProps) {
             <section>
               <h2>Candidate</h2>
               <p>{result.comparison.candidate_run.name || result.comparison.candidate_run.id}</p>
+              <p className="eval-runs-note">
+                Config <code>{result.comparison.candidate_run.rag_config_id}</code>
+              </p>
               <p>
                 Pass rate <strong>{Math.round(result.comparison.candidate_run.summary.pass_rate * 100)}%</strong>
               </p>

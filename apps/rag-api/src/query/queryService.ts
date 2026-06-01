@@ -14,6 +14,7 @@ import type {
   QueryTraceConfig,
   QueryTraceRepository
 } from './queryTraceRepository.js';
+import type { RagConfigRecord } from './ragConfigRepository.js';
 
 const QUERY_PROMPT_VERSION = 'query-prompt-v1';
 
@@ -51,6 +52,7 @@ export type QueryInput = {
   retrievalMode?: RetrievalMode;
   rewriteQuery?: boolean;
   metadataFilters?: MetadataFilters;
+  ragConfig?: RagConfigRecord | null;
 };
 
 export class QueryProviderFailure extends Error {
@@ -64,19 +66,34 @@ export class QueryProviderFailure extends Error {
 }
 
 export class QueryService {
+  private readonly resolveProviderTimeoutMs: () => number;
+  private readonly resolvePromptContextTokenBudget: () => number;
+
   constructor(
     private readonly documentRepository: DocumentRepository,
     private readonly retrievalTraceRepository: RetrievalTraceRepository,
     private readonly queryTraceRepository: QueryTraceRepository,
     private readonly answerProvider: AnswerProvider = new DeterministicAnswerProvider(),
-    private readonly providerTimeoutMs = 10000,
-    private readonly promptContextTokenBudget = 1200
-  ) {}
+    providerTimeoutMs: number | (() => number) = 10000,
+    promptContextTokenBudget: number | (() => number) = 1200,
+    private readonly answerProviderResolver?: (
+      ragConfig: RagConfigRecord | null
+    ) => AnswerProvider
+  ) {
+    this.resolveProviderTimeoutMs =
+      typeof providerTimeoutMs === 'function' ? providerTimeoutMs : () => providerTimeoutMs;
+    this.resolvePromptContextTokenBudget =
+      typeof promptContextTokenBudget === 'function'
+        ? promptContextTokenBudget
+        : () => promptContextTokenBudget;
+  }
 
   async answer(input: QueryInput): Promise<QueryResult> {
     const startTime = Date.now();
-    const topK = input.topK ?? 5;
-    const retrievalMode = input.retrievalMode ?? 'vector';
+    const topK = input.topK ?? input.ragConfig?.topK ?? 5;
+    const retrievalMode = input.retrievalMode ?? input.ragConfig?.retrievalMode ?? 'vector';
+    const contextTokenBudget =
+      input.ragConfig?.promptContextTokenBudget ?? this.resolvePromptContextTokenBudget();
     const { retrievalQuery, queryRewriteEnabled } = resolveRetrievalQuery({
       query: input.question,
       retrievalMode,
@@ -88,7 +105,13 @@ export class QueryService {
       metadataFilters: input.metadataFilters,
       queryRewriteEnabled,
       retrievalQuery,
-      contextTokenBudget: this.promptContextTokenBudget
+      contextTokenBudget,
+      ragConfigId: input.ragConfig?.id,
+      ragConfigName: input.ragConfig?.name,
+      answerProvider: input.ragConfig?.answerProvider,
+      answerModel: input.ragConfig?.answerModel,
+      embeddingProvider: input.ragConfig?.embeddingProvider,
+      embeddingModel: input.ragConfig?.embeddingModel
     };
     const chunks = await this.documentRepository.searchChunks({
       query: retrievalQuery,
@@ -104,7 +127,7 @@ export class QueryService {
       chunks
     });
     const prompt = buildQueryPrompt(input.question, chunks, {
-      maxContextTokens: this.promptContextTokenBudget
+      maxContextTokens: contextTokenBudget
     });
     const citations = createCitations(prompt.context);
     const citationValidation = validateCitations(citations, chunks);
@@ -112,13 +135,17 @@ export class QueryService {
     config.packedChunkCount = prompt.context.length;
     config.droppedChunkCount = Math.max(0, chunks.length - prompt.context.length);
 
+    const selectedProvider = this.answerProviderResolver
+      ? this.answerProviderResolver(input.ragConfig ?? null)
+      : this.answerProvider;
+
     try {
       const providerResult = await withTimeout(
-        this.answerProvider.generate({
+        selectedProvider.generate({
           question: input.question,
           prompt
         }),
-        this.providerTimeoutMs
+        this.resolveProviderTimeoutMs()
       );
       const latencyMs = Date.now() - startTime;
       const providerCall: ProviderCallTelemetry = {

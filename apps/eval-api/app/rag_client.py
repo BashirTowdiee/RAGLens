@@ -22,6 +22,12 @@ class RagQueryResult:
 
 
 @dataclass(frozen=True)
+class RagConfigRecord:
+    id: str
+    name: str
+
+
+@dataclass(frozen=True)
 class RagProviderRetryPolicy:
     max_attempts: int = 2
 
@@ -65,6 +71,9 @@ class RagApiClient:
     ) -> RagQueryResult:
         raise NotImplementedError
 
+    def list_rag_configs(self, request_id: str | None = None) -> list[RagConfigRecord]:
+        raise NotImplementedError
+
 
 class StubRagApiClient(RagApiClient):
     def query(
@@ -93,6 +102,15 @@ class StubRagApiClient(RagApiClient):
             cost_usd=0,
         )
 
+    def list_rag_configs(self, request_id: str | None = None) -> list[RagConfigRecord]:
+        del request_id
+        return [
+            RagConfigRecord(id='deterministic', name='Deterministic'),
+            RagConfigRecord(id='local-balanced', name='Local Balanced (Ollama qwen3:8b)'),
+            RagConfigRecord(id='cloud-baseline', name='Cloud Baseline (OpenAI gpt-4.1-mini)'),
+            RagConfigRecord(id=CI_DETERMINISTIC_RAG_CONFIG_ID, name='CI Deterministic'),
+        ]
+
 
 class HttpRagApiClient(RagApiClient):
     def __init__(
@@ -112,7 +130,6 @@ class HttpRagApiClient(RagApiClient):
         rag_config_id: str,
         request_id: str | None = None,
     ) -> RagQueryResult:
-        del rag_config_id
         headers: dict[str, str] = {}
         if request_id:
             headers['x-request-id'] = request_id
@@ -121,7 +138,7 @@ class HttpRagApiClient(RagApiClient):
             with self._client_factory(timeout=self._timeout_seconds) as client:
                 response = client.post(
                     f'{self._base_url}/api/v1/query',
-                    json={'question': question},
+                    json={'question': question, 'ragConfigId': rag_config_id},
                     headers=headers,
                 )
         except httpx.TimeoutException as exc:
@@ -138,14 +155,20 @@ class HttpRagApiClient(RagApiClient):
             if isinstance(body, dict):
                 retryable = bool(body.get('retryable', response.status_code >= 500))
                 message = str(body.get('message') or 'RAG provider is unavailable.')
+                category = (
+                    'invalid_upstream_response'
+                    if str(body.get('error', '')) == 'rag_config_not_found'
+                    else 'upstream_unavailable'
+                )
             else:
                 retryable = response.status_code >= 500
                 message = 'RAG provider is unavailable.'
+                category = 'upstream_unavailable'
 
             raise RagProviderError(
                 message,
                 retryable=retryable,
-                category='upstream_unavailable',
+                category=category,
             )
 
         body = parse_json_body(response)
@@ -181,6 +204,60 @@ class HttpRagApiClient(RagApiClient):
             retrieved_context=[],
             citations=retrieved_sources,
         )
+
+    def list_rag_configs(self, request_id: str | None = None) -> list[RagConfigRecord]:
+        headers: dict[str, str] = {}
+        if request_id:
+            headers['x-request-id'] = request_id
+
+        try:
+            with self._client_factory(timeout=self._timeout_seconds) as client:
+                response = client.get(
+                    f'{self._base_url}/api/v1/rag-configs',
+                    headers=headers,
+                )
+        except httpx.TimeoutException as exc:
+            raise RagProviderTimeoutError(self._timeout_seconds) from exc
+        except httpx.HTTPError as exc:
+            raise RagProviderError(
+                'RAG provider is unavailable.',
+                retryable=True,
+                category='upstream_unavailable',
+            ) from exc
+
+        if response.status_code >= 400:
+            raise RagProviderError(
+                'RAG provider is unavailable.',
+                retryable=response.status_code >= 500,
+                category='upstream_unavailable',
+            )
+
+        body = parse_json_body(response)
+        if not isinstance(body, dict):
+            raise RagProviderError(
+                'RAG provider returned an invalid response.',
+                retryable=False,
+                category='invalid_upstream_response',
+            )
+
+        configs = body.get('ragConfigs')
+        if not isinstance(configs, list):
+            raise RagProviderError(
+                'RAG provider returned an invalid response.',
+                retryable=False,
+                category='invalid_upstream_response',
+            )
+
+        result: list[RagConfigRecord] = []
+        for config in configs:
+            if not isinstance(config, dict):
+                continue
+            config_id = config.get('id')
+            name = config.get('name')
+            if isinstance(config_id, str) and config_id and isinstance(name, str) and name:
+                result.append(RagConfigRecord(id=config_id, name=name))
+
+        return result
 
 
 def parse_json_body(response: httpx.Response) -> object:

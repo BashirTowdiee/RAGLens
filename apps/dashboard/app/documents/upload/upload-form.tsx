@@ -137,7 +137,7 @@ export default function UploadDocumentForm() {
 
   return (
     <div className="stack upload-stack">
-      <Link href="/documents" className="button-ghost">← Documents</Link>
+      <Link href="/documents" className="back-link">← Documents</Link>
 
       <section className="card">
         <div className="card-header"><h2>Upload document</h2></div>

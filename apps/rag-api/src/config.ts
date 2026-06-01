@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const ConfigSchema = z.object({
+export const ConfigSchema = z.object({
   NODE_ENV: z.string().default('development'),
   PORT: z.coerce.number().int().positive().default(8000),
   DATABASE_URL: z.string().default('postgres://raglens:raglens@localhost:5432/raglens'),
@@ -12,6 +12,9 @@ const ConfigSchema = z.object({
   ANSWER_INPUT_COST_PER_1M_TOKENS: z.coerce.number().nonnegative().optional(),
   ANSWER_OUTPUT_COST_PER_1M_TOKENS: z.coerce.number().nonnegative().optional(),
   ANSWER_PROVIDER_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+  EMBEDDING_PROVIDER: z.enum(['deterministic', 'ollama']).default('ollama'),
+  EMBEDDING_MODEL: z.string().default('nomic-embed-text'),
+  EMBEDDING_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
   PROMPT_CONTEXT_TOKEN_BUDGET: z.coerce.number().int().positive().default(1200),
   RERANKER_PROVIDER: z.enum(['deterministic', 'none']).default('deterministic'),
   OPENAI_API_KEY: z.string().optional(),
@@ -25,6 +28,10 @@ const ConfigSchema = z.object({
 
 export type AppConfig = z.infer<typeof ConfigSchema>;
 
+export function parseConfig(input: Record<string, unknown>): AppConfig {
+  return ConfigSchema.parse(input);
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
-  return ConfigSchema.parse(env);
+  return parseConfig(env);
 }

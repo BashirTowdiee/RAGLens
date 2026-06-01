@@ -28,7 +28,12 @@ from app.eval_runs import (
     PostgresEvalRunRepository,
     create_eval_run_router,
 )
-from app.rag_client import HttpRagApiClient, StubRagApiClient
+from app.rag_client import RagProviderError
+from app.runtime_config import (
+    EvalRuntimeConfigStore,
+    RuntimeConfigRagClient,
+    create_runtime_config_router,
+)
 from app.scoring_router import create_scoring_router
 from app.settings import Settings, get_settings
 
@@ -78,13 +83,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         comparison_repository = InMemoryComparisonRepository()
         ci_gate_repository = InMemoryCiGateResultRepository()
 
-    if resolved_settings.rag_client_mode == 'http':
-        rag_client = HttpRagApiClient(
-            base_url=resolved_settings.rag_api_base_url,
-            timeout_seconds=resolved_settings.rag_api_timeout_seconds,
-        )
-    else:
-        rag_client = StubRagApiClient()
+    runtime_config_store = EvalRuntimeConfigStore(resolved_settings)
+    rag_client = RuntimeConfigRagClient(runtime_config_store)
 
     @app.middleware('http')
     async def add_request_id_header(request: Request, call_next):
@@ -120,18 +120,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     app.include_router(create_dataset_router(dataset_repository))
-    app.include_router(create_eval_run_router(eval_run_repository))
+    app.include_router(
+        create_eval_run_router(
+            eval_run_repository,
+            validate_rag_config=lambda rag_config_id, request_id: validate_rag_config_or_raise(
+                rag_client,
+                rag_config_id,
+                request_id,
+            ),
+            list_rag_configs=lambda request_id: [
+                {'id': config.id, 'name': config.name}
+                for config in rag_client.list_rag_configs(request_id=request_id or None)
+            ],
+        )
+    )
     app.include_router(
         create_eval_runner_router(
             eval_run_repository,
             dataset_repository,
             rag_client,
             max_retry_attempts=resolved_settings.rag_api_max_retries,
+            max_retry_attempts_resolver=runtime_config_store.max_retries,
         )
     )
     app.include_router(create_comparison_router(eval_run_repository, comparison_repository))
     app.include_router(create_ci_gate_router(eval_run_repository, ci_gate_repository))
     app.include_router(create_scoring_router())
+    app.include_router(create_runtime_config_router(runtime_config_store))
 
     @app.get('/api/v1/health')
     def health() -> dict[str, str]:
@@ -145,3 +160,38 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
 
 app = create_app()
+
+
+def validate_rag_config_or_raise(rag_client, rag_config_id: str, request_id: str) -> None:
+    rag_config_id = rag_config_id.strip()
+    if not rag_config_id:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                'error': 'rag_config_not_found',
+                'message': 'RAG config was not found.',
+            },
+        )
+
+    try:
+        configs = rag_client.list_rag_configs(request_id=request_id or None)
+    except RagProviderError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                'error': 'rag_api_unavailable',
+                'message': str(exc),
+            },
+        ) from exc
+
+    if any(config.id == rag_config_id for config in configs):
+        return
+
+    raise HTTPException(
+        status_code=404,
+        detail={
+            'error': 'rag_config_not_found',
+            'message': 'RAG config was not found.',
+            'ragConfigId': rag_config_id,
+        },
+    )

@@ -6,6 +6,7 @@ import { registerDocumentRoutes } from '../documents/routes.js';
 import { AnswerProviderError, type AnswerProvider } from './answerProvider.js';
 import { QueryService } from './queryService.js';
 import { InMemoryQueryTraceRepository } from './queryTraceRepository.js';
+import { InMemoryRagConfigRepository } from './ragConfigRepository.js';
 import { registerQueryRoutes } from './routes.js';
 
 const failingProvider: AnswerProvider = {
@@ -41,6 +42,7 @@ describe('query provider error handling', () => {
     const documentRepository = new InMemoryDocumentRepository();
     const traceRepository = new InMemoryRetrievalTraceRepository();
     const queryTraceRepository = new InMemoryQueryTraceRepository();
+    const ragConfigRepository = new InMemoryRagConfigRepository();
     const queryService = new QueryService(
       documentRepository,
       traceRepository,
@@ -49,7 +51,7 @@ describe('query provider error handling', () => {
     );
 
     await registerDocumentRoutes(app, documentRepository, traceRepository);
-    await registerQueryRoutes(app, queryService, queryTraceRepository);
+    await registerQueryRoutes(app, queryService, queryTraceRepository, ragConfigRepository);
 
     await app.inject({
       method: 'POST',
@@ -134,6 +136,7 @@ describe('query provider error handling', () => {
     const documentRepository = new InMemoryDocumentRepository();
     const traceRepository = new InMemoryRetrievalTraceRepository();
     const queryTraceRepository = new InMemoryQueryTraceRepository();
+    const ragConfigRepository = new InMemoryRagConfigRepository();
     const queryService = new QueryService(
       documentRepository,
       traceRepository,
@@ -142,7 +145,7 @@ describe('query provider error handling', () => {
     );
 
     await registerDocumentRoutes(app, documentRepository, traceRepository);
-    await registerQueryRoutes(app, queryService, queryTraceRepository);
+    await registerQueryRoutes(app, queryService, queryTraceRepository, ragConfigRepository);
 
     const response = await app.inject({
       method: 'POST',

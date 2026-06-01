@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from app.datasets import DatasetRepository, TestCaseRecord
@@ -23,6 +25,7 @@ def create_eval_runner_router(
     dataset_repository: DatasetRepository,
     rag_client: RagApiClient,
     max_retry_attempts: int = 2,
+    max_retry_attempts_resolver: Callable[[], int] | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix='/api/v1/eval-runs', tags=['eval-runs'])
 
@@ -40,6 +43,12 @@ def create_eval_runner_router(
         increment_execute_request_count(eval_run.id)
         acquire_eval_run_execution(eval_run.id)
         try:
+            validate_rag_config_for_execution(
+                rag_client,
+                eval_run.rag_config_id,
+                getattr(request.state, 'request_id', ''),
+            )
+
             test_cases = dataset_repository.list_test_cases(eval_run.dataset_id)
             if test_cases is None:
                 raise HTTPException(
@@ -65,7 +74,12 @@ def create_eval_runner_router(
                     eval_run.id,
                     eval_run.rag_config_id,
                     test_case,
-                    retry_policy=RagProviderRetryPolicy(max_attempts=max_retry_attempts),
+                    retry_policy=RagProviderRetryPolicy(
+                        max_attempts=resolve_max_retry_attempts(
+                            max_retry_attempts,
+                            max_retry_attempts_resolver,
+                        )
+                    ),
                     request_id=getattr(request.state, 'request_id', ''),
                 )
 
@@ -241,6 +255,51 @@ def provider_error_message(error: RagProviderError) -> str:
     if error.category == 'invalid_upstream_response':
         return 'RAG provider returned an invalid response.'
     return str(error)
+
+
+def resolve_max_retry_attempts(
+    fallback_max_retry_attempts: int,
+    max_retry_attempts_resolver: Callable[[], int] | None,
+) -> int:
+    if max_retry_attempts_resolver is None:
+        return fallback_max_retry_attempts
+
+    resolved = max_retry_attempts_resolver()
+    if resolved < 0:
+        return 0
+    return resolved
+
+
+def validate_rag_config_for_execution(
+    rag_client: RagApiClient,
+    rag_config_id: str,
+    request_id: str,
+) -> None:
+    if not hasattr(rag_client, 'list_rag_configs'):
+        return
+
+    try:
+        configs = rag_client.list_rag_configs(request_id=request_id or None)
+    except RagProviderError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                'error': 'rag_api_unavailable',
+                'message': str(exc),
+            },
+        ) from exc
+
+    if any(config.id == rag_config_id for config in configs):
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail={
+            'error': 'rag_config_not_found',
+            'message': 'RAG config was not found.',
+            'ragConfigId': rag_config_id,
+        },
+    )
 
 
 def raise_eval_run_not_found() -> None:

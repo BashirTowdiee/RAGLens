@@ -5,6 +5,7 @@ import { InMemoryRetrievalTraceRepository } from '../documents/retrievalTraceRep
 import { registerDocumentRoutes } from '../documents/routes.js';
 import { QueryService } from './queryService.js';
 import { InMemoryQueryTraceRepository } from './queryTraceRepository.js';
+import { InMemoryRagConfigRepository } from './ragConfigRepository.js';
 import { registerQueryRoutes } from './routes.js';
 
 describe('query retrieval mode tracing', () => {
@@ -13,6 +14,7 @@ describe('query retrieval mode tracing', () => {
     const documentRepository = new InMemoryDocumentRepository();
     const retrievalTraceRepository = new InMemoryRetrievalTraceRepository();
     const queryTraceRepository = new InMemoryQueryTraceRepository();
+    const ragConfigRepository = new InMemoryRagConfigRepository();
     const queryService = new QueryService(
       documentRepository,
       retrievalTraceRepository,
@@ -20,7 +22,7 @@ describe('query retrieval mode tracing', () => {
     );
 
     await registerDocumentRoutes(app, documentRepository, retrievalTraceRepository);
-    await registerQueryRoutes(app, queryService, queryTraceRepository);
+    await registerQueryRoutes(app, queryService, queryTraceRepository, ragConfigRepository);
 
     await app.inject({
       method: 'POST',

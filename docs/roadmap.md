@@ -1135,8 +1135,21 @@ Implementation status:
 
 ```text
 In progress.
-Implemented in-repo: provider factory with deterministic/openai/openrouter/anthropic/ollama adapters, provider-specific model defaults, normalized provider error mapping, and token-based cost estimation config.
-Remaining: provider comparison run presets.
+Implemented in-repo:
+- provider factory with deterministic/openai/openrouter/anthropic/ollama adapters
+- provider-specific model defaults
+- normalized provider error mapping
+- token-based cost estimation config
+- Postgres-backed rag config presets (`rag.rag_configs`) and `/api/v1/rag-configs`
+- per-request `ragConfigId` handling in `POST /api/v1/query`
+- eval-run rag_config validation and forwarding to rag-api query calls
+- dashboard comparison wizard (`/comparisons/new`) for preset-driven run creation + execution + comparison
+- local-balanced baseline runtime path (ollama chat + nomic embeddings contract)
+
+Remaining after this slice:
+- broader provider matrix beyond balanced-core presets
+- mixed embedding-family index strategy
+- additional dashboard comparison polish for larger preset catalogs
 ```
 
 Add providers:

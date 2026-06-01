@@ -19,7 +19,7 @@ export default async function RetrievalTracePage({ params }: RetrievalTracePageP
       <section className="card">
         <div className="card-header">
           <h2>Trace {result.trace.id}</h2>
-          <Link href="/retrieval" className="button-secondary">Back to retrieval</Link>
+          <Link href="/retrieval" className="back-link">← Retrieval</Link>
         </div>
         <div className="card-body">
           <section className="document-summary-grid">

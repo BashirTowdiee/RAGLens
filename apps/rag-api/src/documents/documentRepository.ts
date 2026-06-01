@@ -70,7 +70,8 @@ export class InMemoryDocumentRepository implements DocumentRepository {
       this.embeddingsByChunkId.delete(existingChunk.id);
     }
 
-    const chunkRecords = chunks.map<DocumentChunkRecord>((chunk) => {
+    const chunkRecords: DocumentChunkRecord[] = [];
+    for (const chunk of chunks) {
       const chunkRecord: DocumentChunkRecord = {
         id: randomUUID(),
         documentId: document.id,
@@ -85,11 +86,10 @@ export class InMemoryDocumentRepository implements DocumentRepository {
 
       this.embeddingsByChunkId.set(
         chunkRecord.id,
-        this.embeddingProvider.embedText(chunkRecord.content)
+        await this.embeddingProvider.embedText(chunkRecord.content)
       );
-
-      return chunkRecord;
-    });
+      chunkRecords.push(chunkRecord);
+    }
 
     this.documents.set(document.id, document);
     this.chunksByDocumentId.set(document.id, chunkRecords);
@@ -126,7 +126,7 @@ export class InMemoryDocumentRepository implements DocumentRepository {
         continue;
       }
 
-      const score = scoreChunkForMode({
+      const score = await scoreChunkForMode({
         chunk,
         query: input.query,
         mode,
@@ -175,7 +175,7 @@ export type RetrievalScore = {
   rerankScore?: number;
 };
 
-export function scoreChunkForMode(input: ScoreChunkInput): RetrievalScore {
+export async function scoreChunkForMode(input: ScoreChunkInput): Promise<RetrievalScore> {
   const keyword = keywordScore(input.query, input.chunk.content);
 
   if (input.mode === 'keyword') {
@@ -183,7 +183,7 @@ export function scoreChunkForMode(input: ScoreChunkInput): RetrievalScore {
   }
 
   const vector = input.embedding
-    ? cosineSimilarity(input.embeddingProvider.embedText(input.query), input.embedding)
+    ? cosineSimilarity(await input.embeddingProvider.embedText(input.query), input.embedding)
     : 0;
   const normalizedVector = clampScore(vector);
 

@@ -119,7 +119,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
             chunk.content,
             chunk.tokenCountEstimate,
             chunk.contentHash,
-            vectorToSql(this.embeddingProvider.embedText(chunk.content)),
+            vectorToSql(await this.embeddingProvider.embedText(chunk.content)),
             {}
           ]
         );
@@ -169,7 +169,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
     }
 
     const limit = input.limit ?? 5;
-    const queryEmbedding = vectorToSql(this.embeddingProvider.embedText(input.query));
+    const queryEmbedding = vectorToSql(await this.embeddingProvider.embedText(input.query));
     const result = await this.pool.query<SearchChunkRow>(
       `SELECT
         chunk.id,
@@ -234,7 +234,7 @@ export class PostgresDocumentRepository implements DocumentRepository {
 
   private async searchHybridChunks(input: SearchChunksInput): Promise<RetrievedChunkRecord[]> {
     const limit = input.limit ?? 5;
-    const queryEmbedding = vectorToSql(this.embeddingProvider.embedText(input.query));
+    const queryEmbedding = vectorToSql(await this.embeddingProvider.embedText(input.query));
     const result = await this.pool.query<SearchChunkRow>(
       `SELECT
         chunk.id,

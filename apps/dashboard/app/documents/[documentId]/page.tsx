@@ -16,10 +16,10 @@ export default async function DocumentDetailPage({ params }: DocumentDetailPageP
     </section>
   ) : (
     <div className="stack">
+      <Link href="/documents" className="back-link">← Documents</Link>
       <section className="card">
         <div className="card-header">
           <h2>{result.document.title}</h2>
-          <Link href="/documents" className="button-secondary">Back to documents</Link>
         </div>
         <div className="card-body">
           <p>{result.document.sourceId}</p>
@@ -36,12 +36,14 @@ export default async function DocumentDetailPage({ params }: DocumentDetailPageP
 
       <section className="stack">
         {result.chunks.map((chunk) => (
-          <article key={chunk.id} className="panel">
-            <div className="chunk-header">
-              <strong>Chunk {chunk.chunkIndex + 1}</strong>
-              <span>{chunk.tokenCountEstimate} estimated tokens</span>
+          <article key={chunk.id} className="panel document-chunk-card">
+            <div className="chunk-header document-chunk-header">
+              <strong className="document-chunk-index">Chunk {chunk.chunkIndex + 1}</strong>
+              <span className="document-chunk-tokens">{chunk.tokenCountEstimate} estimated tokens</span>
             </div>
-            <p className="heading-path">{chunk.headingPath.length > 0 ? chunk.headingPath.join(' / ') : 'No heading'}</p>
+            <p className="heading-path document-chunk-path">
+              {chunk.headingPath.length > 0 ? chunk.headingPath.join(' / ') : 'No heading'}
+            </p>
             <pre className="chunk-content">{chunk.content}</pre>
           </article>
         ))}

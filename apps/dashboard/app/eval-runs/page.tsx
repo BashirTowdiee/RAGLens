@@ -38,9 +38,14 @@ export default async function EvalRunsPage({ searchParams }: EvalRunsPageProps) 
       <section className="card">
         <div className="card-header">
           <h2>Eval runs</h2>
-          <Link href="/eval-runs/new" className="button">
-            Create eval run
-          </Link>
+          <div className="button-row">
+            <Link href="/eval-runs/new" className="button">
+              Create eval run
+            </Link>
+            <Link href="/comparisons/new" className="button-secondary">
+              Comparison wizard
+            </Link>
+          </div>
         </div>
         <div className="card-body">
           <p className="eval-runs-note">

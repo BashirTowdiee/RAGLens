@@ -33,6 +33,7 @@ export const routeMeta: RouteMeta[] = [
   { pattern: /^\/eval-runs\/[^/]+$/, title: 'Eval run detail', breadcrumb: 'Evaluation / Eval run detail' },
   { pattern: /^\/eval-runs\/[^/]+\/results\/[^/]+$/, title: 'Case result', breadcrumb: 'Evaluation / Case result' },
   { pattern: /^\/comparisons$/, title: 'Comparisons', breadcrumb: 'Evaluation / Comparisons' },
+  { pattern: /^\/comparisons\/new$/, title: 'Comparison wizard', breadcrumb: 'Evaluation / Comparison wizard' },
   { pattern: /^\/comparisons\/[^/]+$/, title: 'Comparison detail', breadcrumb: 'Evaluation / Comparison detail' },
   { pattern: /^\/devtools$/, title: 'Developer tools', breadcrumb: 'Operations / Devtools' },
   { pattern: /^\/settings$/, title: 'Settings', breadcrumb: 'Operations / Settings' }

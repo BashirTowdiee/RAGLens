@@ -1,5 +1,6 @@
 import { resolve } from 'node:path';
 import { loadConfig } from '../config.js';
+import { resolveEmbeddingProvider } from './embeddingProviderFactory.js';
 import {
   createDocumentPool,
   PostgresDocumentRepository
@@ -8,7 +9,7 @@ import { loadSeedDocuments } from './seedCorpus.js';
 
 const config = loadConfig();
 const pool = createDocumentPool(config.DATABASE_URL);
-const repository = new PostgresDocumentRepository(pool);
+const repository = new PostgresDocumentRepository(pool, resolveEmbeddingProvider(config));
 const seedRoot = resolve(process.cwd(), '../../infra/seed/documents');
 
 try {
